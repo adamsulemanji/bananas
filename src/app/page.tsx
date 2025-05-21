@@ -182,7 +182,7 @@ export default function Home() {
         >
           <div 
             ref={gridRef} 
-            className={`grid grid-cols-[repeat(${GRID_SIZE},_minmax(0,_1fr))] gap-px border border-amber-800 bg-amber-100 p-px w-full aspect-square relative`}
+            className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
             style={{
               position: 'relative',
               zIndex: 0
