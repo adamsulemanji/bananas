@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { DndContext, closestCenter, DragStartEvent, DragEndEvent as DndKitDragEndEvent } from '@dnd-kit/core';
 import GridCell from './components/GridCell';
 import GridTile from './components/GridTile';
@@ -10,6 +10,7 @@ import { useGameState } from '../hooks/useGameState';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useMarqueeSelection, MarqueeRect } from '../hooks/useMarqueeSelection';
 import { generateGridCellIds } from '../utils/gridUtils';
+import { GRID_SIZE } from '../utils/config';
 
 export default function Home() {
   const gridCellIds = generateGridCellIds();
@@ -17,6 +18,7 @@ export default function Home() {
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
 
   const handleSelectTiles = useCallback((ids: string[]) => {
     setSelectedTileIds(ids);
@@ -39,26 +41,67 @@ export default function Home() {
     updateTilePositions: gameState.updateTilePositions,
     returnTileToBag: gameState.returnTileToBag,
     drawTiles: gameState.drawTiles,
-    addTileToHand: gameState.addTileToHand
+    addTileToHand: gameState.addTileToHand,
+    selectedTileIds: selectedTileIds
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {
     setIsDndDragging(true);
-    setSelectedTileIds([]);
+    
+    // Only clear selection if dragging a non-selected tile
+    const draggedTileId = event.active.id as string;
+    const isDraggingSelectedTile = selectedTileIds.includes(draggedTileId);
+    
+    if (!isDraggingSelectedTile) {
+      setSelectedTileIds([]);
+    }
   };
 
   const handleDndDragEnd = (event: DndKitDragEndEvent) => {
     dndHandlers.handleDragEnd(event);
     setIsDndDragging(false);
+    // Clear selection after dropping to revert tile colors
+    setSelectedTileIds([]);
   };
 
-  const handleGridClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDndDragging && !(event.target as HTMLElement).closest('[data-draggable-tile="true"]')) {
-        if(!marqueeSelection.isSelecting){
-            setSelectedTileIds([]);
-        }
+  // Compute bounding box for the current selection
+  useEffect(() => {
+    if (selectedTileIds.length === 0 || !gridRef.current) {
+      setSelectionBox(null);
+      return;
     }
-  }, [isDndDragging, marqueeSelection.isSelecting]);
+
+    const gridBounds = gridRef.current.getBoundingClientRect();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    selectedTileIds.forEach(id => {
+      const tile = gameState.getBoardTile(id);
+      if (!tile) return;
+      const cellEl = document.getElementById(tile.position);
+      if (!cellEl) return;
+      const cellRect = cellEl.getBoundingClientRect();
+
+      minX = Math.min(minX, cellRect.left - gridBounds.left);
+      minY = Math.min(minY, cellRect.top - gridBounds.top);
+      maxX = Math.max(maxX, cellRect.right - gridBounds.left);
+      maxY = Math.max(maxY, cellRect.bottom - gridBounds.top);
+    });
+
+    if (minX === Infinity) {
+      setSelectionBox(null);
+      return;
+    }
+
+    setSelectionBox({
+      x: minX - 1, // account for grid gap
+      y: minY - 1,
+      width: maxX - minX + 2,
+      height: maxY - minY + 2,
+    });
+  }, [selectedTileIds, gameState.tiles]);
 
   return (
     <main 
@@ -83,11 +126,10 @@ export default function Home() {
         <div 
           className="w-full max-w-5xl mx-auto relative"
           onMouseDown={marqueeSelection.initiateMarquee}
-          onClick={handleGridClick}
         >
           <div 
             ref={gridRef} 
-            className="grid grid-cols-[repeat(25,_minmax(0,_1fr))] gap-px border border-amber-800 bg-amber-100 p-px w-full aspect-square relative"
+            className={`grid grid-cols-[repeat(${GRID_SIZE},_minmax(0,_1fr))] gap-px border border-amber-800 bg-amber-100 p-px w-full aspect-square relative`}
             style={{
               position: 'relative',
               zIndex: 0
@@ -122,10 +164,31 @@ export default function Home() {
               }}
             />
           )}
+
+          {/* Selection bounding box */}
+          {selectionBox && !marqueeSelection.isSelecting && (
+            <div
+              style={{
+                position: 'absolute',
+                left: selectionBox.x,
+                top: selectionBox.y,
+                width: selectionBox.width,
+                height: selectionBox.height,
+                border: '2px dashed #1e40af', // bounding box border color
+                pointerEvents: 'none',
+              }}
+            />
+          )}
         </div>
         
         <TrashArea />
       </DndContext>
+      
+      <div className="mt-4 text-xs text-gray-600">
+        {selectedTileIds.length > 0 && 
+          <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together.</p>
+        }
+      </div>
     </main>
   );
 }

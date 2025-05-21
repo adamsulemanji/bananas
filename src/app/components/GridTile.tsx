@@ -28,12 +28,13 @@ export default function GridTile({ id, content, isSelected }: GridTileProps) {
       {...listeners} 
       {...attributes}
       data-draggable-tile="true"
-      className={`w-full h-full bg-yellow-100 border text-black rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm 
-                  ${isDragging ? 'opacity-80 shadow-lg border-yellow-700' : 'border-yellow-700'} 
-                  ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-500' : 'border-yellow-700'}`}
+      className={`w-full h-full border rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm
+                  ${isDragging ? 'opacity-80 shadow-lg border-yellow-700' : 'border-yellow-700'}
+                  ${isSelected && !isDragging ? 'bg-blue-200 border-blue-500' : 'bg-yellow-100'}
+                  ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
     >
-      <div className="relative w-full h-full flex items-center justify-center">
-        <span className="text-center">{content.toUpperCase()}</span>
+      <div className="relative w-full h-full flex items-center justify-center select-none">
+        <span className="text-center text-black">{content.toUpperCase()}</span>
       </div>
     </div>
   );

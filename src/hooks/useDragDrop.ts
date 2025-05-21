@@ -2,6 +2,7 @@
 
 import { DragEndEvent } from '@dnd-kit/core';
 import { BoardTile, PlayerTile } from '../utils/gameUtils';
+import { GRID_SIZE } from '../utils/config';
 
 interface UseDragDropParams {
   getHandTile: (id: string) => PlayerTile | undefined;
@@ -14,6 +15,7 @@ interface UseDragDropParams {
   returnTileToBag: (letter: string) => void;
   drawTiles: (count: number) => void;
   addTileToHand: (letter: string) => void;
+  selectedTileIds: string[];
 }
 
 export function useDragDrop({
@@ -26,7 +28,8 @@ export function useDragDrop({
   updateTilePositions,
   returnTileToBag,
   drawTiles,
-  addTileToHand
+  addTileToHand,
+  selectedTileIds
 }: UseDragDropParams) {
   
   function handleDragEnd(event: DragEndEvent) {
@@ -39,20 +42,31 @@ export function useDragDrop({
     const tileFromHand = getHandTile(activeId);
     const tileFromBoard = getBoardTile(activeId);
 
+    // Determine if we're moving a single tile or multiple selected tiles
+    const isPartOfSelection = tileFromBoard && selectedTileIds.includes(activeId) && selectedTileIds.length > 1;
+    
     // Dropping onto the tile palette from the board
-    if (overId === 'tile-palette' && tileFromBoard) {
-      const content = tileFromBoard.content;
-      
-      // Add the tile back to player's hand
-      addTileToHand(content);
-      
-      // Remove the tile from the board
-      removeTileFromBoard(activeId);
+    if (overId === 'tile-palette') {
+      // Reject moving multiple tiles to the palette
+      if (isPartOfSelection) {
+        return;
+      }
+
+      // Allow single tile moves back to the hand
+      if (tileFromBoard) {
+        addTileToHand(tileFromBoard.content);
+        removeTileFromBoard(activeId);
+      }
       return;
     }
 
     // Dropping into trash area
     if (overId === 'trash') {
+      // Reject moving multiple tiles to trash in one action
+      if (isPartOfSelection) {
+        return;
+      }
+
       let letterToReturn: string | undefined;
       
       if (tileFromHand) {
@@ -94,33 +108,98 @@ export function useDragDrop({
     // Dragging a tile that is already on the board
     if (tileFromBoard && overId.startsWith('cell-')) {
       const destinationCellId = overId;
-      const originCellId = tileFromBoard.position;
-
-      if (destinationCellId === originCellId) {
-        return; // Dropped on its own cell, do nothing
-      }
-
-      const tileAtDestination = getTileAtPosition(destinationCellId);
-
-      if (tileAtDestination) {
-        // Destination cell is occupied by another tile, swap them
-        updateTilePositions(prevTiles => prevTiles.map(t => {
-          if (t.id === tileFromBoard.id) {
-            return { ...t, position: destinationCellId };
+      
+      if (isPartOfSelection) {
+        // Handle moving multiple selected tiles
+        const originCellId = tileFromBoard.position;
+        
+        // Calculate offset from the active tile to the destination cell
+        const [originRow, originCol] = getCellIndices(originCellId);
+        const [destRow, destCol] = getCellIndices(destinationCellId);
+        const rowOffset = destRow - originRow;
+        const colOffset = destCol - originCol;
+        
+        // First check if all destination positions are valid and unoccupied
+        // (excluding positions of selected tiles as they will be moved)
+        const newPositions = new Map<string, string>(); // tileId -> new position
+        let canMove = true;
+        
+        selectedTileIds.forEach(tileId => {
+          const tile = getBoardTile(tileId);
+          if (!tile) return;
+          
+          const [tileRow, tileCol] = getCellIndices(tile.position);
+          const newRow = tileRow + rowOffset;
+          const newCol = tileCol + colOffset;
+          
+          // Check if the new position is within grid bounds
+          if (newRow < 0 || newCol < 0 || newRow >= GRID_SIZE || newCol >= GRID_SIZE) {
+            canMove = false;
+            return;
           }
-          if (t.id === tileAtDestination.id) {
-            return { ...t, position: originCellId };
+          
+          const newCellId = `cell-${newRow * GRID_SIZE + newCol}`;
+          
+          // Check if the destination cell is already occupied by a non-selected tile
+          const occupyingTile = getTileAtPosition(newCellId);
+          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id)) {
+            canMove = false;
+            return;
           }
-          return t;
-        }));
+          
+          newPositions.set(tileId, newCellId);
+        });
+        
+        if (!canMove) return;
+        
+        // Apply all movements at once
+        updateTilePositions(prevTiles => {
+          return prevTiles.map(tile => {
+            const newPosition = newPositions.get(tile.id);
+            if (newPosition) {
+              return { ...tile, position: newPosition };
+            }
+            return tile;
+          });
+        });
       } else {
-        // Destination cell is empty, just move the tile
-        updateTilePositions(prevTiles => prevTiles.map(t =>
-          t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
-        ));
+        // Handle moving a single tile
+        const originCellId = tileFromBoard.position;
+
+        if (destinationCellId === originCellId) {
+          return; // Dropped on its own cell, do nothing
+        }
+
+        const tileAtDestination = getTileAtPosition(destinationCellId);
+
+        if (tileAtDestination) {
+          // Destination cell is occupied by another tile, swap them
+          updateTilePositions(prevTiles => prevTiles.map(t => {
+            if (t.id === tileFromBoard.id) {
+              return { ...t, position: destinationCellId };
+            }
+            if (t.id === tileAtDestination.id) {
+              return { ...t, position: originCellId };
+            }
+            return t;
+          }));
+        } else {
+          // Destination cell is empty, just move the tile
+          updateTilePositions(prevTiles => prevTiles.map(t =>
+            t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
+          ));
+        }
       }
       return;
     }
+  }
+  
+  // Helper function to get row and column from cell ID
+  function getCellIndices(cellId: string): [number, number] {
+    const index = parseInt(cellId.replace('cell-', ''), 10);
+    const row = Math.floor(index / GRID_SIZE);
+    const col = index % GRID_SIZE;
+    return [row, col];
   }
 
   return { handleDragEnd };
