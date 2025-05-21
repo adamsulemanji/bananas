@@ -16,7 +16,7 @@ export default function GridCell({ id, children }: GridCellProps) {
   return (
     <div 
       ref={setNodeRef} 
-      className={`w-full h-full aspect-square border border-amber-800/30 p-0.5 ${isOver ? 'bg-amber-200' : ''}`}
+      className={`w-full h-full aspect-square border border-amber-800/30 p-0.5 relative ${isOver ? 'bg-amber-200' : ''}`}
     >
       {children}
     </div>

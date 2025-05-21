@@ -18,6 +18,7 @@ export default function GridTile({ id, content, isSelected }: GridTileProps) {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     zIndex: isDragging ? 1000 : (isSelected ? 900 : 1),
     transition: isDragging ? undefined : 'transform 0.2s ease',
+    position: isDragging ? 'relative' as const : undefined,
   } : (isSelected ? { zIndex: 900 } : {});
   
   return (

@@ -13,6 +13,7 @@ interface UseDragDropParams {
   updateTilePositions: (updater: (prevTiles: BoardTile[]) => BoardTile[]) => void;
   returnTileToBag: (letter: string) => void;
   drawTiles: (count: number) => void;
+  addTileToHand: (letter: string) => void;
 }
 
 export function useDragDrop({
@@ -24,7 +25,8 @@ export function useDragDrop({
   removeTileFromBoard,
   updateTilePositions,
   returnTileToBag,
-  drawTiles
+  drawTiles,
+  addTileToHand
 }: UseDragDropParams) {
   
   function handleDragEnd(event: DragEndEvent) {
@@ -36,6 +38,18 @@ export function useDragDrop({
 
     const tileFromHand = getHandTile(activeId);
     const tileFromBoard = getBoardTile(activeId);
+
+    // Dropping onto the tile palette from the board
+    if (overId === 'tile-palette' && tileFromBoard) {
+      const content = tileFromBoard.content;
+      
+      // Add the tile back to player's hand
+      addTileToHand(content);
+      
+      // Remove the tile from the board
+      removeTileFromBoard(activeId);
+      return;
+    }
 
     // Dropping into trash area
     if (overId === 'trash') {

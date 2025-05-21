@@ -3,6 +3,7 @@
 import React from 'react';
 import GridTile from './GridTile';
 import { PlayerTile } from '../../utils/gameUtils';
+import { useDroppable } from '@dnd-kit/core';
 
 interface TilePaletteProps {
   playerHand: PlayerTile[];
@@ -17,12 +18,22 @@ function TilePalette({
   onDrawTiles, 
   onTradeInTile 
 }: TilePaletteProps) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: 'tile-palette',
+  });
+  
   return (
-    <div className="flex flex-col gap-2 p-3 border border-amber-800 rounded-md mb-4 bg-amber-50">
-      <h2 className="font-semibold text-black text-sm">Your Tiles</h2>
+    <div 
+      ref={setNodeRef}
+      className={`flex flex-col gap-2 p-3 border border-amber-800 rounded-md mb-4 bg-amber-50 relative z-10 ${isOver ? 'bg-amber-200 border-amber-500' : ''}`}
+    >
+      <h2 className="font-semibold text-black text-sm flex justify-between items-center">
+        <span>Your Tiles</span>
+        <span className="text-xs text-amber-700 italic">{isOver ? 'Release to add tile' : 'Drag tiles here to return them'}</span>
+      </h2>
       <div className="flex flex-wrap gap-1">
         {playerHand.map((tile) => (
-          <div key={tile.id} className="w-8 h-8">
+          <div key={tile.id} className="w-8 h-8 relative">
             <GridTile
               id={tile.id}
               content={tile.letter}

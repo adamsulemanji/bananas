@@ -38,7 +38,8 @@ export default function Home() {
     removeTileFromBoard: gameState.removeTileFromBoard,
     updateTilePositions: gameState.updateTilePositions,
     returnTileToBag: gameState.returnTileToBag,
-    drawTiles: gameState.drawTiles
+    drawTiles: gameState.drawTiles,
+    addTileToHand: gameState.addTileToHand
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {
@@ -86,7 +87,11 @@ export default function Home() {
         >
           <div 
             ref={gridRef} 
-            className="grid grid-cols-[repeat(25,_minmax(0,_1fr))] gap-px border border-amber-800 bg-amber-100 p-px w-full aspect-square"
+            className="grid grid-cols-[repeat(25,_minmax(0,_1fr))] gap-px border border-amber-800 bg-amber-100 p-px w-full aspect-square relative"
+            style={{
+              position: 'relative',
+              zIndex: 0
+            }}
           >
             {gridCellIds.map((cellId) => {
               const tile = gameState.getTileAtPosition(cellId);

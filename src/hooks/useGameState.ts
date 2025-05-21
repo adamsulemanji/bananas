@@ -72,6 +72,13 @@ export function useGameState() {
     setTileCounter(prevCounter => prevCounter + newTiles.length);
   };
   
+  // Add a tile from the board back to the player's hand
+  const addTileToHand = (letter: string) => {
+    const tileId = `hand-${tileCounter}`;
+    setPlayerHand(prevHand => [...prevHand, { id: tileId, letter }]);
+    setTileCounter(prevCounter => prevCounter + 1);
+  };
+  
   // Handle trading 1 tile for 3 new ones
   const handleTradeInTile = (tileId: string) => {
     const tileToTrade = playerHand.find(tile => tile.id === tileId);
@@ -149,6 +156,7 @@ export function useGameState() {
     removeTileFromHand,
     removeTileFromBoard,
     addTileToBoard,
-    updateTilePositions
+    updateTilePositions,
+    addTileToHand
   };
 } 

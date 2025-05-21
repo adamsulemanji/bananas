@@ -84,6 +84,8 @@ export function useMarqueeSelection({
         }
       }
     });
+
+    console.log(selectedIds);
     
     onSelectTiles(selectedIds);
     setIsSelecting(false);
