@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.grid-cols-25 {
+  grid-template-columns: repeat(25, minmax(0, 1fr));
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}

@@ -55,18 +55,22 @@ export default function Home() {
   
   // Counter to create unique IDs for new tiles
   const [tileCounter, setTileCounter] = useState(1);
-  
+
+  console.log(tileCounter);
+  console.log(playerHand);
+  console.log(letterBag);
   // Initialize the game with 21 tiles in player's hand
   useEffect(() => {
-    drawTiles(21);
+    drawTiles(21); // Start with 21 tiles as required for Bananagrams
   }, []);
   
-  // Check if player's hand is empty after each move, and draw 3 more if needed
+  // Automatically draw 3 more tiles when player's hand is empty
   useEffect(() => {
-    if (playerHand.length === 0) {
-      drawTiles(3);
+    const remainingCount = letterBag.reduce((sum, item) => sum + item.count, 0);
+    if (playerHand.length === 0 && remainingCount > 0) {
+      drawTiles(3); // Add 3 new tiles when hand is empty
     }
-  }, [playerHand]);
+  }, [playerHand, letterBag]);
   
   // Draw random tiles from the bag
   const drawTiles = (count: number) => {
@@ -174,7 +178,7 @@ export default function Home() {
       return;
     }
     
-    // Check if the drag is from the player's hand
+    // Check if the drag is from the player's hand to the board
     if (activeTileId.startsWith('hand-')) {
       const handTile = playerHand.find(tile => tile.id === activeTileId);
       if (handTile) {
@@ -199,12 +203,12 @@ export default function Home() {
         }
       }
     } else {
-      // This is a tile already on the board being moved
+      // This is a tile already on the board being moved (key functionality)
       if (active.id !== over.id) {
         const tileAtDestination = tiles.find(tile => tile.position === overDestinationId);
         
         if (tileAtDestination) {
-          // Swap the positions of the two tiles
+          // Swap positions of the two tiles
           setTiles(tiles.map(tile => {
             if (tile.id === activeTileId) {
               return { ...tile, position: overDestinationId };

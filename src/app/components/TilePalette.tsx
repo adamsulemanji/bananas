@@ -24,12 +24,12 @@ function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }:
           </div>
         ))}
       </div>
-      <div className="flex justify-between items-center mt-1">
+      <div className="flex justify-between items-center mt-2">
         <div className="text-xs text-gray-500">
           {remainingTiles} tiles remaining in bunch
         </div>
       </div>
-      <div className="text-xs text-gray-700 text-right">
+      <div className="text-xs text-gray-700 text-right mt-1">
         {playerHand.length === 0 && remainingTiles > 0 ? 
           "Drawing 3 more tiles..." : 
           `${playerHand.length} tiles in hand`}
