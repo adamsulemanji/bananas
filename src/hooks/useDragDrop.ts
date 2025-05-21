@@ -1,11 +1,12 @@
 'use client';
 
 import { DragEndEvent } from '@dnd-kit/core';
-import { BoardTile } from '../utils/gameUtils';
+import { BoardTile, PlayerTile } from '../utils/gameUtils';
 
 interface UseDragDropParams {
-  getHandTile: (id: string) => { id: string; letter: string } | undefined;
+  getHandTile: (id: string) => PlayerTile | undefined;
   getBoardTile: (id: string) => BoardTile | undefined;
+  getTileAtPosition: (cellId: string) => BoardTile | undefined;
   addTileToBoard: (newTile: BoardTile) => void;
   removeTileFromHand: (id: string) => void;
   removeTileFromBoard: (id: string) => void;
@@ -17,6 +18,7 @@ interface UseDragDropParams {
 export function useDragDrop({
   getHandTile,
   getBoardTile,
+  getTileAtPosition,
   addTileToBoard,
   removeTileFromHand,
   removeTileFromBoard,
@@ -57,15 +59,14 @@ export function useDragDrop({
     // Dragging from playerHand to a board cell
     if (tileFromHand && overId.startsWith('cell-')) {
       const destinationCellId = overId;
-      const tileAtDestinationBoard = getBoardTile(overId);
+      const tileAtDestination = getTileAtPosition(destinationCellId);
 
-      // Check if there's already a tile at the destination
-      if (tileAtDestinationBoard) {
-        return; // Don't allow stacking
+      if (tileAtDestination) {
+        return; // Destination is occupied, prevent stacking
       }
 
       // Place tile on board
-      const newBoardTile = { 
+      const newBoardTile: BoardTile = { 
         id: tileFromHand.id, 
         content: tileFromHand.letter, 
         position: destinationCellId 
@@ -85,15 +86,15 @@ export function useDragDrop({
         return; // Dropped on its own cell, do nothing
       }
 
-      const tileAtDestinationBoard = getBoardTile(overId);
+      const tileAtDestination = getTileAtPosition(destinationCellId);
 
-      if (tileAtDestinationBoard) {
+      if (tileAtDestination) {
         // Destination cell is occupied by another tile, swap them
         updateTilePositions(prevTiles => prevTiles.map(t => {
           if (t.id === tileFromBoard.id) {
             return { ...t, position: destinationCellId };
           }
-          if (t.id === tileAtDestinationBoard.id) {
+          if (t.id === tileAtDestination.id) {
             return { ...t, position: originCellId };
           }
           return t;
