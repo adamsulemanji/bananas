@@ -2,9 +2,10 @@
 
 import React from 'react';
 import GridTile from './GridTile';
+import { PlayerTile } from '../../utils/gameUtils';
 
 interface TilePaletteProps {
-  playerHand: { id: string; letter: string }[];
+  playerHand: PlayerTile[];
   remainingTiles: number;
   onDrawTiles: (count: number) => void;
   onTradeInTile: (tileId: string) => void;
@@ -24,7 +25,7 @@ function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }:
           </div>
         ))}
       </div>
-      <div className="flex justify-between items-center mt-2">
+      <div className="flex justify-between items-center mt-1">
         <div className="text-xs text-gray-500">
           {remainingTiles} tiles remaining in bunch
         </div>
