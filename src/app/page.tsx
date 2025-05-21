@@ -73,12 +73,11 @@ export default function Home() {
   useEffect(() => {
     const remainingCount = letterBag.reduce((sum, item) => sum + item.count, 0);
     if (playerHand.length === 0 && remainingCount > 0 && tiles.length > 0) {
-      // Only draw more tiles if we've already placed some on the board
-      console.log('Hand empty, drawing 3 more tiles');
-      drawTiles(3); // Add 3 new tiles when hand is empty
+      console.log('Hand empty and game in progress, drawing 3 more tiles');
+      drawTiles(3);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerHand.length]);
+  }, [playerHand.length, letterBag, tiles.length]);
   
   // Draw random tiles from the bag
   const drawTiles = (count: number) => {
@@ -148,105 +147,87 @@ export default function Home() {
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    
     if (!over) return;
-    
-    const activeTileId = active.id as string;
-    const overDestinationId = over.id as string;
-    
-    console.log('Drag end:', { activeTileId, overDestinationId });
-    
-    // Handle dropping into trash area (return to bunch)
-    if (overDestinationId === 'trash') {
-      // Check if the tile is from the player's hand or the board
-      const handTile = playerHand.find(tile => tile.id === activeTileId);
-      const boardTile = tiles.find(tile => tile.id === activeTileId);
-      
-      if (handTile) {
-        // Return the tile to the letter bag
-        const updatedBag = [...letterBag];
-        const letterIndex = updatedBag.findIndex(item => item.letter === handTile.letter);
-        if (letterIndex >= 0) {
-          updatedBag[letterIndex].count++;
-        }
-        setLetterBag(updatedBag);
-        
-        // Remove it from the hand
-        setPlayerHand(playerHand.filter(tile => tile.id !== activeTileId));
-        
-        // Draw 3 new tiles
-        drawTiles(3);
-      } else if (boardTile) {
-        // Return the tile to the letter bag
-        const updatedBag = [...letterBag];
-        const letterIndex = updatedBag.findIndex(item => item.letter === boardTile.content);
-        if (letterIndex >= 0) {
-          updatedBag[letterIndex].count++;
-        }
-        setLetterBag(updatedBag);
-        
-        // Remove it from the board
-        setTiles(tiles.filter(tile => tile.id !== activeTileId));
-        
-        // Draw 3 new tiles
-        drawTiles(3);
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const tileFromHand = playerHand.find(tile => tile.id === activeId);
+    const tileFromBoard = tiles.find(tile => tile.id === activeId);
+
+    // Scenario 1: Dropping into Trash Area
+    if (overId === 'trash') {
+      let letterToReturn: string | undefined;
+      if (tileFromHand) {
+        letterToReturn = tileFromHand.letter;
+        setPlayerHand(prevHand => prevHand.filter(tile => tile.id !== activeId));
+      } else if (tileFromBoard) {
+        letterToReturn = tileFromBoard.content;
+        setTiles(prevTiles => prevTiles.filter(tile => tile.id !== activeId));
+      }
+
+      if (letterToReturn) {
+        const letter = letterToReturn; // To satisfy TypeScript inside the map function
+        setLetterBag(prevBag => {
+          const updatedBag = [...prevBag];
+          const letterIndex = updatedBag.findIndex(item => item.letter === letter);
+          if (letterIndex >= 0) {
+            updatedBag[letterIndex] = { ...updatedBag[letterIndex], count: updatedBag[letterIndex].count + 1 };
+          }
+          return updatedBag;
+        });
+        drawTiles(3); // Draw 3 new tiles
       }
       return;
     }
-    
-    // Check if the drag is from the player's hand to the board
-    if (activeTileId.startsWith('hand-')) {
-      const handTile = playerHand.find(tile => tile.id === activeTileId);
-      if (handTile) {
-        // Create a new tile on the board
-        const newTile = {
-          id: activeTileId,
-          content: handTile.letter,
-          position: overDestinationId,
-        };
-        
-        // Check if there's already a tile at the destination
-        const tileAtDestination = tiles.find(tile => tile.position === overDestinationId);
-        
-        if (tileAtDestination) {
-          // Don't allow stacking - do nothing
-          return;
-        } else {
-          // Add the new tile to the board
-          setTiles([...tiles, newTile]);
-          // Remove from hand
-          setPlayerHand(playerHand.filter(tile => tile.id !== activeTileId));
-        }
+
+    // Scenario 2: Dragging from playerHand to a board cell (Droppable ID starts with 'cell-')
+    if (tileFromHand && overId.startsWith('cell-')) {
+      const destinationCellId = overId;
+      const tileAtDestinationBoard = tiles.find(t => t.position === destinationCellId);
+
+      if (tileAtDestinationBoard) {
+        // Destination is occupied on the board, prevent stacking
+        return;
       }
-    } else {
-      // This is a tile already on the board being moved (key functionality)
-      const movingTile = tiles.find(tile => tile.id === activeTileId);
-      
-      if (movingTile && active.id !== over.id) {
-        console.log('Moving board tile:', movingTile);
-        
-        const tileAtDestination = tiles.find(tile => tile.position === overDestinationId);
-        
-        if (tileAtDestination) {
-          console.log('Destination has tile:', tileAtDestination);
-          // Swap the positions of the two tiles
-          setTiles(tiles.map(tile => {
-            if (tile.id === activeTileId) {
-              return { ...tile, position: overDestinationId };
-            } else if (tile.id === tileAtDestination.id) {
-              // Find the origin position of the active tile
-              return { ...tile, position: movingTile.position };
-            }
-            return tile;
-          }));
-        } else {
-          console.log('Moving to empty position:', overDestinationId);
-          // Move the tile to the new position
-          setTiles(tiles.map(tile => 
-            tile.id === activeTileId ? { ...tile, position: overDestinationId } : tile
-          ));
-        }
+
+      // Place tile on board
+      const newBoardTile = { id: tileFromHand.id, content: tileFromHand.letter, position: destinationCellId };
+      setTiles(prevTiles => [...prevTiles, newBoardTile]);
+      setPlayerHand(prevHand => prevHand.filter(tile => tile.id !== activeId));
+      return;
+    }
+
+    // Scenario 3: Dragging a tile that is already on the board (Droppable ID starts with 'cell-')
+    if (tileFromBoard && overId.startsWith('cell-')) {
+      const destinationCellId = overId;
+      const originCellId = tileFromBoard.position;
+
+      if (destinationCellId === originCellId) {
+        // Dropped on its own cell, do nothing
+        return;
       }
+
+      const tileAtDestinationBoard = tiles.find(t => t.position === destinationCellId);
+
+      if (tileAtDestinationBoard) {
+        // Destination cell is occupied by another tile, swap them
+        setTiles(prevTiles => prevTiles.map(t => {
+          if (t.id === tileFromBoard.id) {
+            return { ...t, position: destinationCellId }; // Move the dragged tile to the new cell
+          }
+          if (t.id === tileAtDestinationBoard.id) {
+            return { ...t, position: originCellId }; // Move the occupant tile to the original cell of the dragged tile
+          }
+          return t;
+        }));
+      } else {
+        // Destination cell is empty, just move the tile
+        setTiles(prevTiles => prevTiles.map(t =>
+          t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
+        ));
+      }
+      return;
     }
   }
 
