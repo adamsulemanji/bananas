@@ -8,12 +8,12 @@ interface GridTileProps {
   content: string;
 }
 
-function GridTile({ id, content }: GridTileProps) {
+export default function GridTile({ id, content }: GridTileProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
   });
   
-  const style = transform ? {
+  const dynamicStyle = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     zIndex: isDragging ? 1000 : 1,
     transition: isDragging ? undefined : 'transform 0.2s ease',
@@ -22,7 +22,7 @@ function GridTile({ id, content }: GridTileProps) {
   return (
     <div 
       ref={setNodeRef} 
-      style={style} 
+      style={dynamicStyle}
       {...listeners} 
       {...attributes}
       className={`w-full h-full bg-yellow-100 border border-yellow-700 text-black rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm ${isDragging ? 'opacity-80 shadow-lg' : ''}`}
@@ -32,6 +32,4 @@ function GridTile({ id, content }: GridTileProps) {
       </div>
     </div>
   );
-}
-
-export default GridTile; 
+} 

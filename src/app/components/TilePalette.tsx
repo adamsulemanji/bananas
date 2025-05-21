@@ -11,7 +11,12 @@ interface TilePaletteProps {
   onTradeInTile: (tileId: string) => void;
 }
 
-function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }: TilePaletteProps) {
+function TilePalette({ 
+  playerHand, 
+  remainingTiles, 
+  onDrawTiles, 
+  onTradeInTile 
+}: TilePaletteProps) {
   return (
     <div className="flex flex-col gap-2 p-3 border border-amber-800 rounded-md mb-4 bg-amber-50">
       <h2 className="font-semibold text-black text-sm">Your Tiles</h2>
