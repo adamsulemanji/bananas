@@ -61,28 +61,40 @@ export default function Home() {
   console.log(letterBag);
   // Initialize the game with 21 tiles in player's hand
   useEffect(() => {
-    drawTiles(21); // Start with 21 tiles as required for Bananagrams
-  }, []);
+    // Generate the initial tiles once
+    if (playerHand.length === 0 && tiles.length === 0) {
+      console.log('Initializing with 21 tiles');
+      drawTiles(21); // Start with 21 tiles as required for Bananagrams
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // Empty dependency array to run only once
   
   // Automatically draw 3 more tiles when player's hand is empty
   useEffect(() => {
     const remainingCount = letterBag.reduce((sum, item) => sum + item.count, 0);
-    if (playerHand.length === 0 && remainingCount > 0) {
+    if (playerHand.length === 0 && remainingCount > 0 && tiles.length > 0) {
+      // Only draw more tiles if we've already placed some on the board
+      console.log('Hand empty, drawing 3 more tiles');
       drawTiles(3); // Add 3 new tiles when hand is empty
     }
-  }, [playerHand, letterBag]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerHand.length]);
   
   // Draw random tiles from the bag
   const drawTiles = (count: number) => {
+    console.log(`Drawing ${count} tiles...`);
     // Create a copy of the letter bag
     const updatedBag = [...letterBag];
-    const newTiles = [];
+    const newTiles: { id: string; letter: string }[] = [];
     
     // Draw random letters
     for (let i = 0; i < count; i++) {
       // Calculate total tiles remaining
       const totalRemaining = updatedBag.reduce((sum, item) => sum + item.count, 0);
-      if (totalRemaining === 0) break;
+      if (totalRemaining === 0) {
+        console.log('No more tiles remaining!');
+        break;
+      }
       
       // Pick a random tile from what's left
       const randomIndex = Math.floor(Math.random() * totalRemaining);
@@ -105,10 +117,12 @@ export default function Home() {
       }
     }
     
+    console.log(`Drew ${newTiles.length} new tiles`);
+    
     // Update the state
     setLetterBag(updatedBag);
-    setPlayerHand([...playerHand, ...newTiles]);
-    setTileCounter(tileCounter + newTiles.length);
+    setPlayerHand(prevHand => [...prevHand, ...newTiles]);
+    setTileCounter(prevCounter => prevCounter + newTiles.length);
   };
   
   // Handle trading 1 tile for 3 new ones
@@ -139,6 +153,8 @@ export default function Home() {
     
     const activeTileId = active.id as string;
     const overDestinationId = over.id as string;
+    
+    console.log('Drag end:', { activeTileId, overDestinationId });
     
     // Handle dropping into trash area (return to bunch)
     if (overDestinationId === 'trash') {
@@ -204,22 +220,27 @@ export default function Home() {
       }
     } else {
       // This is a tile already on the board being moved (key functionality)
-      if (active.id !== over.id) {
+      const movingTile = tiles.find(tile => tile.id === activeTileId);
+      
+      if (movingTile && active.id !== over.id) {
+        console.log('Moving board tile:', movingTile);
+        
         const tileAtDestination = tiles.find(tile => tile.position === overDestinationId);
         
         if (tileAtDestination) {
-          // Swap positions of the two tiles
+          console.log('Destination has tile:', tileAtDestination);
+          // Swap the positions of the two tiles
           setTiles(tiles.map(tile => {
             if (tile.id === activeTileId) {
               return { ...tile, position: overDestinationId };
             } else if (tile.id === tileAtDestination.id) {
               // Find the origin position of the active tile
-              const activeTile = tiles.find(t => t.id === activeTileId);
-              return { ...tile, position: activeTile ? activeTile.position : tile.position };
+              return { ...tile, position: movingTile.position };
             }
             return tile;
           }));
         } else {
+          console.log('Moving to empty position:', overDestinationId);
           // Move the tile to the new position
           setTiles(tiles.map(tile => 
             tile.id === activeTileId ? { ...tile, position: overDestinationId } : tile
