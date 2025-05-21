@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { DndContext, closestCenter, DragStartEvent, DragEndEvent as DndKitDragEndEvent } from '@dnd-kit/core';
+import { 
+  DndContext, 
+  closestCenter, 
+  DragStartEvent, 
+  DragEndEvent as DndKitDragEndEvent,
+  DragOverlay,
+  Active
+} from '@dnd-kit/core';
 import GridCell from './components/GridCell';
 import GridTile from './components/GridTile';
 import TilePalette from './components/TilePalette';
@@ -11,6 +18,22 @@ import { useDragDrop } from '../hooks/useDragDrop';
 import { useMarqueeSelection, MarqueeRect } from '../hooks/useMarqueeSelection';
 import { generateGridCellIds } from '../utils/gridUtils';
 import { GRID_SIZE } from '../utils/config';
+import { BoardTile, PlayerTile } from '../utils/gameUtils';
+
+// Helper function (can be moved to utils if used elsewhere)
+function getCellIndices(cellId: string): [number, number] {
+  const index = parseInt(cellId.replace('cell-', ''), 10);
+  const row = Math.floor(index / GRID_SIZE);
+  const col = index % GRID_SIZE;
+  return [row, col];
+}
+
+interface ActiveDragData {
+  active: Active;
+  cellWidth: number;
+  cellHeight: number;
+  initialSelectedTiles: BoardTile[]; // Store initial positions
+}
 
 export default function Home() {
   const gridCellIds = generateGridCellIds();
@@ -18,6 +41,7 @@ export default function Home() {
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
+  const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
   const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
 
   const handleSelectTiles = useCallback((ids: string[]) => {
@@ -47,10 +71,38 @@ export default function Home() {
 
   const handleDndDragStart = (event: DragStartEvent) => {
     setIsDndDragging(true);
+
+    const activeId = event.active.id as string;
+    const isBoardTileDrag = !!gameState.getBoardTile(activeId);
+    
+    if (isBoardTileDrag && selectedTileIds.includes(activeId) && selectedTileIds.length > 0 && gridRef.current) {
+      const firstCell = gridRef.current.querySelector('#cell-0'); // Corrected querySelector
+      if (firstCell) {
+        const cellRect = firstCell.getBoundingClientRect();
+        const initialSelectedBoardTiles = selectedTileIds
+          .map(id => gameState.getBoardTile(id))
+          .filter(tile => tile !== undefined) as BoardTile[];
+
+        setActiveDragData({
+          active: event.active,
+          cellWidth: cellRect.width,
+          cellHeight: cellRect.height,
+          initialSelectedTiles: initialSelectedBoardTiles,
+        });
+      }
+    } else {
+      // Handle dragging from hand or single board tile not part of current marquee selection
+      // (though marquee selection clears on non-selected drag start)
+      setActiveDragData({
+        active: event.active,
+        cellWidth: 50, // Default/approximate size for hand tiles
+        cellHeight: 50,
+        initialSelectedTiles: [], // No group for hand tiles in this context
+      });
+    }
     
     // Only clear selection if dragging a non-selected tile
-    const draggedTileId = event.active.id as string;
-    const isDraggingSelectedTile = selectedTileIds.includes(draggedTileId);
+    const isDraggingSelectedTile = selectedTileIds.includes(activeId);
     
     if (!isDraggingSelectedTile) {
       setSelectedTileIds([]);
@@ -60,6 +112,7 @@ export default function Home() {
   const handleDndDragEnd = (event: DndKitDragEndEvent) => {
     dndHandlers.handleDragEnd(event);
     setIsDndDragging(false);
+    setActiveDragData(null);
     // Clear selection after dropping to revert tile colors
     setSelectedTileIds([]);
   };
@@ -144,6 +197,7 @@ export default function Home() {
                       id={tile.id} 
                       content={tile.content} 
                       isSelected={selectedTileIds.includes(tile.id)}
+                      isGhost={activeDragData !== null && selectedTileIds.includes(tile.id) && selectedTileIds.length > 0}
                     />
                   ) : null}
                 </GridCell>
@@ -182,6 +236,94 @@ export default function Home() {
         </div>
         
         <TrashArea />
+        <DragOverlay dropAnimation={null}>
+          {activeDragData ? (() => {
+            const { active, cellWidth, cellHeight, initialSelectedTiles } = activeDragData;
+            const activeId = active.id as string;
+            
+            const isMultiSelectDrag = initialSelectedTiles.length > 0 && initialSelectedTiles.some(t => t.id === activeId);
+
+            if (isMultiSelectDrag) {
+              const activeDraggedTileInitial = initialSelectedTiles.find(t => t.id === activeId);
+              if (!activeDraggedTileInitial) return null; // Should be a BoardTile
+
+              // Get position of the active dragged tile
+              const [activeInitialRow, activeInitialCol] = getCellIndices(activeDraggedTileInitial.position);
+              
+              // Calculate the bounding box of selected tiles relative to active tile
+              let minRelRow = 0, maxRelRow = 0, minRelCol = 0, maxRelCol = 0;
+
+              initialSelectedTiles.forEach(tile => { // These are BoardTile[]
+                const [row, col] = getCellIndices(tile.position);
+                const relRow = row - activeInitialRow;
+                const relCol = col - activeInitialCol;
+                
+                minRelRow = Math.min(minRelRow, relRow);
+                maxRelRow = Math.max(maxRelRow, relRow);
+                minRelCol = Math.min(minRelCol, relCol);
+                maxRelCol = Math.max(maxRelCol, relCol);
+              });
+
+              const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
+              const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+
+              const containerStyle: React.CSSProperties = {
+                width: containerWidth,
+                height: containerHeight,
+                position: 'relative',
+                transform: `translate(${minRelCol * cellWidth}px, ${minRelRow * cellHeight}px)`,
+                pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
+              };
+
+              return (
+                <div style={containerStyle}>
+                  {initialSelectedTiles.map(tile => { // These are BoardTile[]
+                    const [row, col] = getCellIndices(tile.position);
+                    // Position relative to the active tile
+                    const relRow = row - activeInitialRow;
+                    const relCol = col - activeInitialCol;
+                    
+                    const tileStyle: React.CSSProperties = {
+                      position: 'absolute',
+                      left: (relCol - minRelCol) * cellWidth,
+                      top: (relRow - minRelRow) * cellHeight,
+                      width: cellWidth,
+                      height: cellHeight,
+                      boxSizing: 'border-box',
+                      margin: 0,
+                      padding: 0,
+                    };
+
+                    return (
+                      <GridTile
+                        key={tile.id}
+                        id={tile.id}
+                        content={tile.content} // BoardTile has content
+                        isSelected={true}
+                        style={tileStyle}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            } else {
+              const tileData = gameState.getBoardTile(activeId) || gameState.getHandTile(activeId);
+              if (!tileData) return null;
+
+              const content = (tileData as BoardTile).content !== undefined 
+                                ? (tileData as BoardTile).content 
+                                : (tileData as PlayerTile).letter;
+              return (
+                <GridTile 
+                  id={activeId} 
+                  content={content}
+                  isSelected={true} 
+                  style={{ width: cellWidth, height: cellHeight }}
+                />
+              );
+            }
+          })() : null}
+        </DragOverlay>
       </DndContext>
       
       <div className="mt-4 text-xs text-gray-600">
