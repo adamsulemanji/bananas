@@ -7,7 +7,10 @@ import {
   DragStartEvent, 
   DragEndEvent as DndKitDragEndEvent,
   DragOverlay,
-  Active
+  Active,
+  PointerSensor,
+  useSensor,
+  useSensors
 } from '@dnd-kit/core';
 import GridCell from './components/GridCell';
 import GridTile from './components/GridTile';
@@ -16,7 +19,7 @@ import TrashArea from './components/TrashArea';
 import { useGameState } from '../hooks/useGameState';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useMarqueeSelection, MarqueeRect } from '../hooks/useMarqueeSelection';
-import { generateGridCellIds } from '../utils/gridUtils';
+import { generateGridCellIds, transposeTiles } from '../utils/gridUtils';
 import { GRID_SIZE } from '../utils/config';
 import { BoardTile, PlayerTile } from '../utils/gameUtils';
 
@@ -33,6 +36,7 @@ interface ActiveDragData {
   cellWidth: number;
   cellHeight: number;
   initialSelectedTiles: BoardTile[]; // Store initial positions
+  cursorOffset: { x: number; y: number }; // Store cursor offset from active tile
 }
 
 export default function Home() {
@@ -44,9 +48,61 @@ export default function Home() {
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
   const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
 
+  // Configure sensors to capture initial cursor position
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Prevent accidental drags
+      },
+    })
+  );
+
   const handleSelectTiles = useCallback((ids: string[]) => {
     setSelectedTileIds(ids);
   }, []);
+
+  // Handle transpose with T key
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 't' && selectedTileIds.length > 0) {
+        const selectedBoardTiles = selectedTileIds
+          .map(id => gameState.getBoardTile(id))
+          .filter(tile => tile !== undefined) as BoardTile[];
+        
+        if (selectedBoardTiles.length === 0) return;
+        
+        const newPositions = transposeTiles(selectedBoardTiles);
+        if (!newPositions) return; // Can't transpose (would go out of bounds)
+        
+        // Check if any of the new positions are occupied by non-selected tiles
+        let canTranspose = true;
+        const selectedPositions = new Set(selectedBoardTiles.map(t => t.position));
+        
+        newPositions.forEach((newPos) => {
+          const occupyingTile = gameState.getTileAtPosition(newPos);
+          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id) && !selectedPositions.has(newPos)) {
+            canTranspose = false;
+          }
+        });
+        
+        if (!canTranspose) return;
+        
+        // Apply the transpose
+        gameState.updateTilePositions(prevTiles => {
+          return prevTiles.map(tile => {
+            const newPosition = newPositions.get(tile.id);
+            if (newPosition) {
+              return { ...tile, position: newPosition };
+            }
+            return tile;
+          });
+        });
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [selectedTileIds, gameState]);
 
   const marqueeSelection = useMarqueeSelection({
     gridRef,
@@ -76,28 +132,43 @@ export default function Home() {
     const isBoardTileDrag = !!gameState.getBoardTile(activeId);
     
     if (isBoardTileDrag && selectedTileIds.includes(activeId) && selectedTileIds.length > 0 && gridRef.current) {
-      const firstCell = gridRef.current.querySelector('#cell-0'); // Corrected querySelector
+      const firstCell = gridRef.current.querySelector('#cell-0');
       if (firstCell) {
         const cellRect = firstCell.getBoundingClientRect();
         const initialSelectedBoardTiles = selectedTileIds
           .map(id => gameState.getBoardTile(id))
           .filter(tile => tile !== undefined) as BoardTile[];
 
-        setActiveDragData({
-          active: event.active,
-          cellWidth: cellRect.width,
-          cellHeight: cellRect.height,
-          initialSelectedTiles: initialSelectedBoardTiles,
-        });
+        // Calculate cursor offset from the active tile
+        const activeTile = gameState.getBoardTile(activeId);
+        if (activeTile) {
+          const activeTileElement = document.getElementById(activeTile.position);
+          if (activeTileElement) {
+            const tileRect = activeTileElement.getBoundingClientRect();
+            const pointerEvent = event.activatorEvent as PointerEvent;
+            const cursorOffset = {
+              x: pointerEvent.clientX - tileRect.left,
+              y: pointerEvent.clientY - tileRect.top
+            };
+
+            setActiveDragData({
+              active: event.active,
+              cellWidth: cellRect.width,
+              cellHeight: cellRect.height,
+              initialSelectedTiles: initialSelectedBoardTiles,
+              cursorOffset
+            });
+          }
+        }
       }
     } else {
       // Handle dragging from hand or single board tile not part of current marquee selection
-      // (though marquee selection clears on non-selected drag start)
       setActiveDragData({
         active: event.active,
         cellWidth: 50, // Default/approximate size for hand tiles
         cellHeight: 50,
         initialSelectedTiles: [], // No group for hand tiles in this context
+        cursorOffset: { x: 25, y: 25 } // Center by default
       });
     }
     
@@ -165,6 +236,7 @@ export default function Home() {
       <h1 className="text-2xl font-bold mb-4 text-black">Bananagrams</h1>
       
       <DndContext 
+        sensors={sensors}
         onDragStart={handleDndDragStart}
         onDragEnd={handleDndDragEnd} 
         collisionDetection={closestCenter}
@@ -238,7 +310,7 @@ export default function Home() {
         <TrashArea />
         <DragOverlay dropAnimation={null}>
           {activeDragData ? (() => {
-            const { active, cellWidth, cellHeight, initialSelectedTiles } = activeDragData;
+            const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } = activeDragData;
             const activeId = active.id as string;
             
             const isMultiSelectDrag = initialSelectedTiles.length > 0 && initialSelectedTiles.some(t => t.id === activeId);
@@ -267,11 +339,15 @@ export default function Home() {
               const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
               const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
 
+              // Adjust for cursor offset
+              const offsetX = -cursorOffset.x + minRelCol * cellWidth;
+              const offsetY = -cursorOffset.y + minRelRow * cellHeight;
+
               const containerStyle: React.CSSProperties = {
                 width: containerWidth,
                 height: containerHeight,
                 position: 'relative',
-                transform: `translate(${minRelCol * cellWidth}px, ${minRelRow * cellHeight}px)`,
+                transform: `translate(${offsetX}px, ${offsetY}px)`,
                 pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
               };
 
@@ -328,7 +404,7 @@ export default function Home() {
       
       <div className="mt-4 text-xs text-gray-600">
         {selectedTileIds.length > 0 && 
-          <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together.</p>
+          <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together. Press T to transpose.</p>
         }
       </div>
     </main>

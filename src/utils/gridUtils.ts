@@ -47,4 +47,63 @@ export const getAdjacentCells = (cellId: string): string[] => {
   }
   
   return adjacent;
-}; 
+};
+
+export function transposeTiles(selectedTiles: { id: string; position: string }[]): Map<string, string> | null {
+  if (selectedTiles.length === 0) return null;
+
+  // Get the positions as row/col coordinates
+  const positions = selectedTiles.map(tile => {
+    const index = parseInt(tile.position.replace('cell-', ''), 10);
+    const row = Math.floor(index / GRID_SIZE);
+    const col = index % GRID_SIZE;
+    return { id: tile.id, row, col };
+  });
+
+  // Find the bounding box
+  let minRow = Infinity, maxRow = -Infinity;
+  let minCol = Infinity, maxCol = -Infinity;
+  
+  positions.forEach(({ row, col }) => {
+    minRow = Math.min(minRow, row);
+    maxRow = Math.max(maxRow, row);
+    minCol = Math.min(minCol, col);
+    maxCol = Math.max(maxCol, col);
+  });
+
+  // Calculate center of the bounding box
+  const centerRow = (minRow + maxRow) / 2;
+  const centerCol = (minCol + maxCol) / 2;
+
+  // Transpose around the center
+  const newPositions = new Map<string, string>();
+  
+  positions.forEach(({ id, row, col }) => {
+    // Calculate relative position from center
+    const relRow = row - centerRow;
+    const relCol = col - centerCol;
+    
+    // Transpose: swap row and column offsets
+    const newRelRow = relCol;
+    const newRelCol = relRow;
+    
+    // Calculate new absolute position
+    const newRow = Math.round(centerRow + newRelRow);
+    const newCol = Math.round(centerCol + newRelCol);
+    
+    // Check if new position is within bounds
+    if (newRow < 0 || newCol < 0 || newRow >= GRID_SIZE || newCol >= GRID_SIZE) {
+      return null; // Can't transpose - would go out of bounds
+    }
+    
+    const newCellId = `cell-${newRow * GRID_SIZE + newCol}`;
+    newPositions.set(id, newCellId);
+  });
+  
+  // Return null if any position would be out of bounds
+  if (newPositions.size !== selectedTiles.length) {
+    return null;
+  }
+  
+  return newPositions;
+} 

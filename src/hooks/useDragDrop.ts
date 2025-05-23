@@ -124,6 +124,15 @@ export function useDragDrop({
         const newPositions = new Map<string, string>(); // tileId -> new position
         let canMove = true;
         
+        // Create a set of current positions of selected tiles for faster lookup
+        const selectedPositions = new Set<string>();
+        selectedTileIds.forEach(tileId => {
+          const tile = getBoardTile(tileId);
+          if (tile) {
+            selectedPositions.add(tile.position);
+          }
+        });
+        
         selectedTileIds.forEach(tileId => {
           const tile = getBoardTile(tileId);
           if (!tile) return;
@@ -142,7 +151,7 @@ export function useDragDrop({
           
           // Check if the destination cell is already occupied by a non-selected tile
           const occupyingTile = getTileAtPosition(newCellId);
-          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id)) {
+          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id) && !selectedPositions.has(newCellId)) {
             canMove = false;
             return;
           }
