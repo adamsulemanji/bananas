@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useRef, useState, useCallback, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   DndContext, 
   closestCenter, 
@@ -15,15 +15,14 @@ import {
 } from '@dnd-kit/core';
 import GridCell from '../../components/GridCell';
 import GridTile from '../../components/GridTile';
-import TilePalette from '../../components/TilePalette';
 import TrashArea from '../../components/TrashArea';
-import { useGameState } from '../../../hooks/useGameState';
-import { useDragDrop } from '../../../hooks/useDragDrop';
-import { useMarqueeSelection, MarqueeRect } from '../../../hooks/useMarqueeSelection';
-import { generateGridCellIds, transposeTiles } from '../../../utils/gridUtils';
-import { GRID_SIZE } from '../../../utils/config';
-import { BoardTile, PlayerTile } from '../../../utils/gameUtils';
-import { getGameSession, saveGameSession } from '../../../utils/gameSession';
+import { useMultiplayerGameState } from '@/hooks/useMultiplayerGameState';
+import { useDragDrop } from '@/hooks/useDragDrop';
+import { useMarqueeSelection, MarqueeRect } from '@/hooks/useMarqueeSelection';
+import { generateGridCellIds, transposeTiles } from '@/utils/gridUtils';
+import { GRID_SIZE } from '@/utils/config';
+import { BoardTile, PlayerTile } from '@/types/multiplayer';
+import { useSocket } from '@/contexts/SocketContext';
 
 // Helper function (can be moved to utils if used elsewhere)
 function getCellIndices(cellId: string): [number, number] {
@@ -41,20 +40,32 @@ interface ActiveDragData {
   cursorOffset: { x: number; y: number }; // Store cursor offset from active tile
 }
 
-export default function GamePage() {
-  const params = useParams();
+function MultiplayerGameContent() {
   const router = useRouter();
-  const gameId = params.gameId as string;
-  const [gamePin, setGamePin] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const searchParams = useSearchParams();
+  const roomPin = searchParams.get('pin');
+  
+  const { 
+    currentRoom,
+    playerName,
+    isConnected,
+    callPeel,
+    dumpTile,
+    updateBoard,
+    onPeelCalled,
+    onGameWon,
+    onPlayerDumped
+  } = useSocket();
   
   const gridCellIds = generateGridCellIds();
-  const gameState = useGameState();
+  const gameState = useMultiplayerGameState();
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
   const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
+  const [gameStatus, setGameStatus] = useState<string>('');
+  const [winner, setWinner] = useState<{ id: string; name: string } | null>(null);
 
   // Configure sensors to capture initial cursor position
   const sensors = useSensors(
@@ -65,54 +76,67 @@ export default function GamePage() {
     })
   );
 
-  // Load game session on mount
   useEffect(() => {
-    const session = getGameSession(gameId);
-    if (session) {
-      setGamePin(session.pin);
-      // Load game state from session if it exists and is not empty
-      if (session.gameState && typeof session.gameState === 'string' && session.gameState.length > 0) {
-        try {
-          gameState.loadFromSerialized(session.gameState);
-        } catch (error) {
-          console.error('Failed to load saved game state:', error);
-          // If loading fails, the game will initialize normally
-        }
-      }
-      // If gameState is empty or invalid, the game will initialize with 21 tiles automatically
-    } else {
-      // If no session found, redirect to home
+    if (!roomPin || !currentRoom) {
       router.push('/');
+      return;
     }
-  }, [gameId]); // Remove router and gameState from dependencies to prevent re-runs
 
-  // Auto-save game state every 3 seconds when there are changes
+    // Listen for peel events
+    const unsubscribePeel = onPeelCalled((data) => {
+      setGameStatus(`${data.callerName} called PEEL! Everyone gets a new tile.`);
+      gameState.handlePeelEvent(data);
+      setTimeout(() => setGameStatus(''), 3000);
+    });
+
+    // Listen for game won
+    const unsubscribeWon = onGameWon((data) => {
+      setWinner({ id: data.winnerId, name: data.winnerName });
+    });
+
+    // Listen for dumps
+    const unsubscribeDump = onPlayerDumped((data) => {
+      setGameStatus(`${data.playerName} dumped a tile. ${data.remainingTiles} tiles left.`);
+      setTimeout(() => setGameStatus(''), 3000);
+    });
+
+    return () => {
+      unsubscribePeel();
+      unsubscribeWon();
+      unsubscribeDump();
+    };
+  }, [roomPin, currentRoom, onPeelCalled, onGameWon, onPlayerDumped, gameState, router]);
+
+  // Update board state when tiles change
   useEffect(() => {
-    if (!gamePin) return;
-    
-    const saveInterval = setInterval(() => {
-      setSaveStatus('saving');
-      
-      try {
-        const session = getGameSession(gameId);
-        if (session) {
-          // Serialize current game state
-          session.gameState = gameState.getSerializedState();
-          session.lastSaved = new Date();
-          saveGameSession(session);
-          setSaveStatus('saved');
-          
-          // In the future, this would be an API call:
-          // await saveGameToServer(gameId, session);
-        }
-      } catch (error) {
-        console.error('Failed to save game:', error);
-        setSaveStatus('error');
-      }
-    }, 3000);
+    if (gameState.tiles.length > 0 || gameState.playerHand.length > 0) {
+      updateBoard(gameState.tiles);
+    }
+  }, [gameState.tiles, updateBoard]);
 
-    return () => clearInterval(saveInterval);
-  }, [gameId, gamePin, gameState.tiles, gameState.playerHand, gameState.letterBag]);
+  const handleCallPeel = async () => {
+    if (gameState.playerHand.length > 0) {
+      setGameStatus('You still have tiles in your hand!');
+      setTimeout(() => setGameStatus(''), 3000);
+      return;
+    }
+
+    const result = await callPeel();
+    if (!result.success) {
+      setGameStatus(result.error || 'Failed to call peel');
+      setTimeout(() => setGameStatus(''), 3000);
+    }
+  };
+
+  const handleDumpTile = async (tileId: string) => {
+    const result = await dumpTile(tileId);
+    if (result.success && result.newTiles) {
+      gameState.handleDumpResult(tileId, result.newTiles);
+    } else {
+      setGameStatus(result.error || 'Failed to dump tile');
+      setTimeout(() => setGameStatus(''), 3000);
+    }
+  };
 
   const handleSelectTiles = useCallback((ids: string[]) => {
     setSelectedTileIds(ids);
@@ -284,41 +308,77 @@ export default function GamePage() {
     });
   }, [selectedTileIds, gameState.tiles]);
 
+  if (!isConnected || !currentRoom) {
+    return (
+      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">Loading game...</p>
+        </div>
+      </main>
+    );
+  }
+
+  const currentPlayer = currentRoom.players.find(p => p.name === playerName);
+  const otherPlayers = currentRoom.players.filter(p => p.name !== playerName);
+
+  if (winner) {
+    return (
+      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
+        <div className="text-center bg-white rounded-xl shadow-lg p-12">
+          <h1 className="text-4xl font-bold mb-4">
+            {winner.name === playerName ? '🎉 You Won! 🎉' : `${winner.name} Won!`}
+          </h1>
+          <p className="text-xl text-gray-600 mb-8">
+            {winner.name === playerName 
+              ? 'Congratulations on your victory!' 
+              : 'Better luck next time!'}
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg"
+          >
+            Back to Home
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main 
       className="min-h-screen p-4 flex flex-col items-center bg-amber-50 relative"
       onMouseMove={marqueeSelection.dragMarquee}
       onMouseUp={marqueeSelection.endMarquee}
     >
-      <div className="w-full max-w-5xl mx-auto flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-black">Bananagrams</h1>
+      <div className="w-full max-w-7xl mx-auto flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-black">Bananagrams Multiplayer</h1>
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            PIN: <span className="font-mono font-bold">{gamePin || '----'}</span>
+            PIN: <span className="font-mono font-bold">{roomPin}</span>
           </div>
-          <div className="text-xs text-gray-500">
-            {saveStatus === 'saving' && '⏳ Saving...'}
-            {saveStatus === 'saved' && '✓ Saved'}
-            {saveStatus === 'error' && '⚠️ Save error'}
+          <div className="text-sm text-gray-600">
+            {gameState.remainingTiles} tiles left
           </div>
           <button 
             onClick={() => {
-              if (window.confirm('Are you sure you want to reset the game? This will clear all tiles and start fresh.')) {
-                gameState.resetGame();
+              if (window.confirm('Are you sure you want to leave the game?')) {
+                router.push('/');
               }
             }}
-            className="px-3 py-1 text-sm text-black bg-yellow-200 hover:bg-yellow-300 rounded transition-colors"
-          >
-            Reset Game
-          </button>
-          <button 
-            onClick={() => router.push('/')}
             className="px-3 py-1 text-sm text-black bg-amber-200 hover:bg-amber-300 rounded transition-colors"
           >
-            Exit Game
+            Leave Game
           </button>
         </div>
       </div>
+
+      {/* Game Status Messages */}
+      {gameStatus && (
+        <div className="mb-4 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg animate-pulse">
+          {gameStatus}
+        </div>
+      )}
       
       <DndContext 
         sensors={sensors}
@@ -326,70 +386,121 @@ export default function GamePage() {
         onDragEnd={handleDndDragEnd} 
         collisionDetection={closestCenter}
       >
-        <TilePalette 
-          playerHand={gameState.playerHand}
-          remainingTiles={gameState.getRemainingTileCount()}
-          onDrawTiles={gameState.drawTiles}
-          onTradeInTile={gameState.handleTradeInTile}
-        />
-        
-        <div 
-          className="w-full max-w-5xl mx-auto relative"
-          onMouseDown={marqueeSelection.initiateMarquee}
-        >
-          <div 
-            ref={gridRef} 
-            className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
-            style={{
-              position: 'relative',
-              zIndex: 0
-            }}
-          >
-            {gridCellIds.map((cellId) => {
-              const tile = gameState.getTileAtPosition(cellId);
-              return (
-                <GridCell key={cellId} id={cellId}>
-                  {tile ? (
-                    <GridTile 
-                      id={tile.id} 
-                      content={tile.content} 
-                      isSelected={selectedTileIds.includes(tile.id)}
-                      isGhost={activeDragData !== null && selectedTileIds.includes(tile.id) && selectedTileIds.length > 0}
+        <div className="flex gap-4 w-full max-w-7xl">
+          {/* Main Game Area */}
+          <div className="flex-1">
+            {/* Player Hand */}
+            <div className="mb-4 p-3 border border-amber-800 rounded-md bg-amber-50">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="font-semibold text-black text-sm">Your Tiles ({gameState.playerHand.length})</h2>
+                <button
+                  onClick={handleCallPeel}
+                  disabled={gameState.playerHand.length > 0}
+                  className={`px-4 py-1 text-sm font-bold rounded transition-colors ${
+                    gameState.playerHand.length === 0
+                      ? 'bg-green-500 hover:bg-green-600 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  PEEL!
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {gameState.playerHand.map((tile) => (
+                  <div key={tile.id} className="w-8 h-8 relative">
+                    <GridTile
+                      id={tile.id}
+                      content={tile.letter}
                     />
-                  ) : null}
-                </GridCell>
-              );
-            })}
-          </div>
-          {marqueeSelection.marqueeRect && (
-            <div
-              style={{
-                position: 'absolute',
-                left: marqueeSelection.marqueeRect.x,
-                top: marqueeSelection.marqueeRect.y,
-                width: marqueeSelection.marqueeRect.width,
-                height: marqueeSelection.marqueeRect.height,
-                border: '1px dashed blue',
-                backgroundColor: 'rgba(0, 0, 255, 0.1)',
-                pointerEvents: 'none',
-              }}
-            />
-          )}
+                    <button
+                      onClick={() => handleDumpTile(tile.id)}
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center"
+                      title="Dump this tile for 3 new ones"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Game Board */}
+            <div 
+              className="w-full max-w-5xl mx-auto relative"
+              onMouseDown={marqueeSelection.initiateMarquee}
+            >
+              <div 
+                ref={gridRef} 
+                className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
+                style={{
+                  position: 'relative',
+                  zIndex: 0
+                }}
+              >
+                {gridCellIds.map((cellId) => {
+                  const tile = gameState.getTileAtPosition(cellId);
+                  return (
+                    <GridCell key={cellId} id={cellId}>
+                      {tile ? (
+                        <GridTile 
+                          id={tile.id} 
+                          content={tile.content} 
+                          isSelected={selectedTileIds.includes(tile.id)}
+                          isGhost={activeDragData !== null && selectedTileIds.includes(tile.id) && selectedTileIds.length > 0}
+                        />
+                      ) : null}
+                    </GridCell>
+                  );
+                })}
+              </div>
+              {marqueeSelection.marqueeRect && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: marqueeSelection.marqueeRect.x,
+                    top: marqueeSelection.marqueeRect.y,
+                    width: marqueeSelection.marqueeRect.width,
+                    height: marqueeSelection.marqueeRect.height,
+                    border: '1px dashed blue',
+                    backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
 
-          {/* Selection bounding box */}
-          {selectionBox && !marqueeSelection.isSelecting && (
-            <div
-              style={{
-                position: 'absolute',
-                left: selectionBox.x,
-                top: selectionBox.y,
-                width: selectionBox.width,
-                height: selectionBox.height,
-                border: '2px dashed #1e40af', // bounding box border color
-                pointerEvents: 'none',
-              }}
-            />
-          )}
+              {/* Selection bounding box */}
+              {selectionBox && !marqueeSelection.isSelecting && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: selectionBox.x,
+                    top: selectionBox.y,
+                    width: selectionBox.width,
+                    height: selectionBox.height,
+                    border: '2px dashed #1e40af', // bounding box border color
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Other Players Sidebar */}
+          <div className="w-64 bg-white rounded-lg shadow-lg p-4">
+            <h3 className="font-bold text-gray-800 mb-3">Other Players</h3>
+            <div className="space-y-2">
+              {otherPlayers.map((player) => (
+                <div key={player.id} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-700">{player.name}</span>
+                    <span className="text-sm text-gray-500">
+                      {player.tiles.length} tiles
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
         
         <TrashArea />
@@ -493,5 +604,20 @@ export default function GamePage() {
         }
       </div>
     </main>
+  );
+}
+
+export default function MultiplayerGamePage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-600">Loading game...</p>
+        </div>
+      </main>
+    }>
+      <MultiplayerGameContent />
+    </Suspense>
   );
 } 

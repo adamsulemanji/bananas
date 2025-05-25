@@ -14,6 +14,7 @@ import {
   GameSession 
 } from '../utils/gameSession';
 import GameManagement from './components/GameManagement';
+import { useSocket } from '@/contexts/SocketContext';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -22,6 +23,16 @@ export default function LandingPage() {
   const [recentGames, setRecentGames] = useState<GameSession[]>([]);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [showGameManagement, setShowGameManagement] = useState(false);
+  
+  // Multiplayer states
+  const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
+  const [multiplayerMode, setMultiplayerMode] = useState<'create' | 'join' | null>(null);
+  const [playerName, setPlayerName] = useState('');
+  const [joinPin, setJoinPin] = useState('');
+  const [multiplayerError, setMultiplayerError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { createRoom, joinRoom, isConnected } = useSocket();
 
   // Load recent games on mount
   useEffect(() => {
@@ -65,6 +76,49 @@ export default function LandingPage() {
       router.push(`/game/${session.gameId}`);
     } else {
       setRestoreError('No game found with this PIN');
+    }
+  };
+
+  const handleCreateMultiplayerRoom = async () => {
+    if (!playerName.trim()) {
+      setMultiplayerError('Please enter your name');
+      return;
+    }
+    
+    setIsProcessing(true);
+    setMultiplayerError('');
+    
+    const result = await createRoom(playerName);
+    
+    if (result.success && result.pin) {
+      router.push(`/multiplayer/lobby?pin=${result.pin}`);
+    } else {
+      setMultiplayerError(result.error || 'Failed to create room');
+      setIsProcessing(false);
+    }
+  };
+  
+  const handleJoinMultiplayerRoom = async () => {
+    if (!playerName.trim()) {
+      setMultiplayerError('Please enter your name');
+      return;
+    }
+    
+    if (joinPin.length !== 4) {
+      setMultiplayerError('PIN must be 4 digits');
+      return;
+    }
+    
+    setIsProcessing(true);
+    setMultiplayerError('');
+    
+    const result = await joinRoom(joinPin, playerName);
+    
+    if (result.success) {
+      router.push(`/multiplayer/lobby?pin=${joinPin}`);
+    } else {
+      setMultiplayerError(result.error || 'Failed to join room');
+      setIsProcessing(false);
     }
   };
 
@@ -151,6 +205,41 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* Multiplayer Section */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg p-8 mb-8">
+          <div className="text-center text-white">
+            <h2 className="text-3xl font-bold mb-4">🌟 NEW: Multiplayer Mode!</h2>
+            <p className="text-lg mb-6">
+              Play with 2-8 friends in real-time. Create a room or join with a PIN!
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => {
+                  setShowMultiplayerModal(true);
+                  setMultiplayerMode('create');
+                }}
+                disabled={!isConnected}
+                className="bg-white text-purple-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Room
+              </button>
+              <button
+                onClick={() => {
+                  setShowMultiplayerModal(true);
+                  setMultiplayerMode('join');
+                }}
+                disabled={!isConnected}
+                className="bg-white text-pink-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Join Room
+              </button>
+            </div>
+            {!isConnected && (
+              <p className="text-yellow-200 text-sm mt-4">Connecting to server...</p>
+            )}
+          </div>
+        </div>
+
         {/* Recent Games */}
         {recentGames.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg p-8">
@@ -194,17 +283,89 @@ export default function LandingPage() {
           <p className="text-sm mb-2">Coming Soon</p>
           <div className="flex gap-4 justify-center">
             <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
-              👥 Multiplayer Mode
-            </span>
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
               🏆 Leaderboards
             </span>
             <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
               📱 Mobile App
             </span>
+            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
+              🎨 Custom Themes
+            </span>
           </div>
         </div>
       </div>
+
+      {/* Multiplayer Modal */}
+      {showMultiplayerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">
+              {multiplayerMode === 'create' ? 'Create Multiplayer Room' : 'Join Multiplayer Room'}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-amber-500 focus:outline-none"
+                  maxLength={20}
+                />
+              </div>
+              
+              {multiplayerMode === 'join' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Room PIN
+                  </label>
+                  <input
+                    type="text"
+                    value={joinPin}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setJoinPin(value);
+                    }}
+                    placeholder="Enter 4-digit PIN"
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-xl font-mono focus:border-amber-500 focus:outline-none"
+                    maxLength={4}
+                  />
+                </div>
+              )}
+              
+              {multiplayerError && (
+                <p className="text-red-500 text-sm">{multiplayerError}</p>
+              )}
+              
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={multiplayerMode === 'create' ? handleCreateMultiplayerRoom : handleJoinMultiplayerRoom}
+                  disabled={isProcessing}
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                >
+                  {isProcessing ? 'Processing...' : multiplayerMode === 'create' ? 'Create Room' : 'Join Room'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMultiplayerModal(false);
+                    setMultiplayerMode(null);
+                    setMultiplayerError('');
+                    setPlayerName('');
+                    setJoinPin('');
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
