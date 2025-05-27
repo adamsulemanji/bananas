@@ -47,6 +47,9 @@ export default function GamePage() {
   const gameId = params.gameId as string;
   const [gamePin, setGamePin] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [hasWon, setHasWon] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState(Date.now());
+  const [finalScore, setFinalScore] = useState<number | null>(null);
   
   const gridCellIds = generateGridCellIds();
   const gameState = useGameState();
@@ -113,6 +116,40 @@ export default function GamePage() {
 
     return () => clearInterval(saveInterval);
   }, [gameId, gamePin, gameState.tiles, gameState.playerHand, gameState.letterBag]);
+
+  // Check for win condition
+  useEffect(() => {
+    // Player wins when they have no tiles in hand AND no tiles remaining in the bag
+    // Must have at least some tiles on the board to win
+    if (gameState.playerHand.length === 0 && gameState.getRemainingTileCount() === 0 && gameState.tiles.length > 0 && !hasWon) {
+      // Calculate score based on time taken (in seconds)
+      const timeTaken = Math.floor((Date.now() - gameStartTime) / 1000);
+      const baseScore = 10000;
+      const timeBonus = Math.max(0, 3600 - timeTaken) * 10; // Bonus for finishing under 1 hour
+      const totalScore = baseScore + timeBonus;
+      
+      setFinalScore(totalScore);
+      setHasWon(true);
+      
+      // Save the win state
+      setSaveStatus('saving');
+      try {
+        const session = getGameSession(gameId);
+        if (session) {
+          session.gameState = gameState.getSerializedState();
+          session.lastSaved = new Date();
+          session.isCompleted = true;
+          session.finalScore = totalScore;
+          session.completionTime = timeTaken;
+          saveGameSession(session);
+          setSaveStatus('saved');
+        }
+      } catch (error) {
+        console.error('Failed to save win state:', error);
+        setSaveStatus('error');
+      }
+    }
+  }, [gameState.playerHand.length, gameState.getRemainingTileCount, gameState.tiles.length, gameId, gameStartTime]);
 
   const handleSelectTiles = useCallback((ids: string[]) => {
     setSelectedTileIds(ids);
@@ -283,6 +320,52 @@ export default function GamePage() {
       height: maxY - minY + 2,
     });
   }, [selectedTileIds, gameState.tiles]);
+
+  // Show win screen if player has won
+  if (hasWon) {
+    return (
+      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
+        <div className="text-center bg-white rounded-xl shadow-2xl p-12 max-w-md mx-auto animate-fadeIn">
+          <div className="mb-6">
+            <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            <h1 className="text-4xl font-bold text-amber-800 mb-2">Congratulations!</h1>
+            <p className="text-xl text-gray-600">You've completed the puzzle!</p>
+          </div>
+          
+          <div className="bg-amber-50 rounded-lg p-6 mb-8">
+            <div className="text-3xl font-bold text-amber-700 mb-2">
+              Score: {finalScore?.toLocaleString()}
+            </div>
+            <div className="text-sm text-gray-600">
+              Time: {Math.floor((Date.now() - gameStartTime) / 60000)} minutes {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)} seconds
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                if (window.confirm('Start a new game?')) {
+                  gameState.resetGame();
+                  setHasWon(false);
+                  setFinalScore(null);
+                  setGameStartTime(Date.now());
+                }
+              }}
+              className="w-full px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors"
+            >
+              Play Again
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main 

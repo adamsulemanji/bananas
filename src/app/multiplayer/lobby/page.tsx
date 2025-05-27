@@ -31,19 +31,17 @@ function MultiplayerLobbyContent() {
 
     // Listen for room updates
     const unsubscribeRoom = onRoomUpdate((room) => {
-      console.log('Room updated:', room);
+
     });
 
     // Listen for game start
     const unsubscribeGameStart = onGameStart((data) => {
-      console.log('Game starting!', data);
       // Navigate to multiplayer game
       router.push(`/multiplayer/game?pin=${roomPin}`);
     });
 
     // Listen for players leaving
     const unsubscribePlayerLeft = onPlayerLeft((data) => {
-      console.log(`${data.playerName} left the game`);
     });
 
     return () => {

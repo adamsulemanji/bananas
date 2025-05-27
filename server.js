@@ -13,6 +13,14 @@ const handle = app.getRequestHandler();
 // Game room storage
 const gameRooms = new Map();
 
+// Global tile counter to ensure unique IDs
+let globalTileIdCounter = 0;
+
+// Helper to generate unique tile ID
+function generateTileId(prefix = 'tile') {
+  return `${prefix}-${Date.now()}-${globalTileIdCounter++}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 // Helper to generate 4-digit PIN
 function generatePin() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -59,6 +67,8 @@ app.prepare().then(() => {
           id: socket.id,
           name: playerName,
           tiles: [],
+          boardTiles: [],
+          handSize: 0,
           isHost: true,
           isReady: false
         }],
@@ -75,7 +85,18 @@ app.prepare().then(() => {
       callback({ success: true, pin, gameId });
       
       // Send updated room info
-      io.to(gameId).emit('roomUpdate', room);
+      io.to(gameId).emit('roomUpdate', {
+        ...room,
+        players: room.players.map(p => ({
+          ...p,
+          // Include tiles in hand count
+          handSize: p.tiles ? p.tiles.filter(tile => 
+            !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+          ).length : 0,
+          // Include board tiles count
+          boardSize: p.boardTiles ? p.boardTiles.length : 0
+        }))
+      });
     });
 
     // Join an existing room
@@ -102,6 +123,8 @@ app.prepare().then(() => {
         id: socket.id,
         name: playerName,
         tiles: [],
+        boardTiles: [],
+        handSize: 0,
         isHost: false,
         isReady: false
       });
@@ -113,7 +136,16 @@ app.prepare().then(() => {
       callback({ success: true, gameId: room.id });
       
       // Notify all players in room
-      io.to(room.id).emit('roomUpdate', room);
+      io.to(room.id).emit('roomUpdate', {
+        ...room,
+        players: room.players.map(p => ({
+          ...p,
+          handSize: p.tiles ? p.tiles.filter(tile => 
+            !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+          ).length : 0,
+          boardSize: p.boardTiles ? p.boardTiles.length : 0
+        }))
+      });
     });
 
     // Player ready status
@@ -126,7 +158,16 @@ app.prepare().then(() => {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
         player.isReady = !player.isReady;
-        io.to(room.id).emit('roomUpdate', room);
+        io.to(room.id).emit('roomUpdate', {
+          ...room,
+          players: room.players.map(p => ({
+            ...p,
+            handSize: p.tiles ? p.tiles.filter(tile => 
+              !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+            ).length : 0,
+            boardSize: p.boardTiles ? p.boardTiles.length : 0
+          }))
+        });
       }
     });
 
@@ -196,26 +237,45 @@ app.prepare().then(() => {
       // Distribute initial tiles to players
       const tilesPerPlayer = getInitialTilesPerPlayer(room.players.length);
       
-      room.players.forEach(player => {
+      room.players.forEach((player, playerIndex) => {
         player.tiles = [];
         for (let i = 0; i < tilesPerPlayer; i++) {
           if (room.letterBag.length > 0) {
             player.tiles.push({
-              id: `tile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: generateTileId('start'),
               letter: room.letterBag.pop()
             });
           }
         }
+        player.handSize = player.tiles.length;
       });
       
       room.gameState = 'playing';
       callback({ success: true });
       
-      // Send game start event with initial state
+      // Send game start event with initial state FIRST
       io.to(room.id).emit('gameStart', {
-        players: room.players,
+        players: room.players.map(p => ({
+          ...p,
+          // At game start, all tiles are in hand (boardTiles is undefined/empty)
+          tiles: p.tiles
+        })),
         remainingTiles: room.letterBag.length
       });
+      
+      // Send room update with playing state after a small delay
+      setTimeout(() => {
+        io.to(room.id).emit('roomUpdate', {
+          ...room,
+          players: room.players.map(p => ({
+            ...p,
+            handSize: p.tiles ? p.tiles.filter(tile => 
+              !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+            ).length : 0,
+            boardSize: p.boardTiles ? p.boardTiles.length : 0
+          }))
+        });
+      }, 200);
     });
 
     // Player calls "Peel" (emptied their hand)
@@ -226,8 +286,19 @@ app.prepare().then(() => {
       if (!room || room.gameState !== 'playing') return;
       
       const player = room.players.find(p => p.id === socket.id);
-      if (!player || player.tiles.length > 0) {
-        callback({ success: false, error: 'You still have tiles!' });
+      if (!player) {
+        callback({ success: false, error: 'Player not found' });
+        return;
+      }
+      
+      // Check if player actually has 0 tiles in hand
+      // We need to check tiles that are NOT on the board
+      const tilesInHand = player.tiles.filter(tile => 
+        !player.boardTiles || !player.boardTiles.some(bt => bt.id === tile.id)
+      );
+      
+      if (tilesInHand.length > 0) {
+        callback({ success: false, error: 'You still have tiles in your hand!' });
         return;
       }
       
@@ -243,13 +314,17 @@ app.prepare().then(() => {
         return;
       }
       
+      // Check if this is the last round (not enough tiles for another peel)
+      const isLastRound = room.letterBag.length < room.players.length * 2;
+      
       // Give everyone 1 tile
       room.players.forEach(p => {
         if (room.letterBag.length > 0) {
-          p.tiles.push({
-            id: `tile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          const newTile = {
+            id: generateTileId('peel'),
             letter: room.letterBag.pop()
-          });
+          };
+          p.tiles.push(newTile);
         }
       });
       
@@ -258,8 +333,28 @@ app.prepare().then(() => {
       // Notify all players
       io.to(room.id).emit('peelCalled', {
         callerName: player.name,
-        players: room.players,
-        remainingTiles: room.letterBag.length
+        players: room.players.map(p => ({
+          ...p,
+          // Only send tiles that are in hand (not on board)
+          tiles: p.tiles.filter(tile => 
+            !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+          ),
+          boardTiles: p.boardTiles || []
+        })),
+        remainingTiles: room.letterBag.length,
+        isLastRound: isLastRound
+      });
+      
+      // Send room update to update the sidebar
+      io.to(room.id).emit('roomUpdate', {
+        ...room,
+        players: room.players.map(p => ({
+          ...p,
+          handSize: p.tiles ? p.tiles.filter(tile => 
+            !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+          ).length : 0,
+          boardSize: p.boardTiles ? p.boardTiles.length : 0
+        }))
       });
     });
 
@@ -299,13 +394,18 @@ app.prepare().then(() => {
       for (let i = 0; i < 3; i++) {
         if (room.letterBag.length > 0) {
           newTiles.push({
-            id: `tile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${i}`,
+            id: generateTileId('dump'),
             letter: room.letterBag.pop()
           });
         }
       }
       
       player.tiles.push(...newTiles);
+      
+      // Update handSize
+      if (player.handSize !== undefined) {
+        player.handSize = player.tiles.length;
+      }
       
       callback({ success: true, newTiles });
       
@@ -314,6 +414,18 @@ app.prepare().then(() => {
         playerId: socket.id,
         playerName: player.name,
         remainingTiles: room.letterBag.length
+      });
+      
+      // Send room update to update the sidebar
+      io.to(room.id).emit('roomUpdate', {
+        ...room,
+        players: room.players.map(p => ({
+          ...p,
+          handSize: p.tiles ? p.tiles.filter(tile => 
+            !p.boardTiles || !p.boardTiles.some(bt => bt.id === tile.id)
+          ).length : 0,
+          boardSize: p.boardTiles ? p.boardTiles.length : 0
+        }))
       });
     });
 
@@ -329,11 +441,100 @@ app.prepare().then(() => {
       
       player.boardTiles = boardTiles;
       
+      // Calculate actual hand size
+      const handSize = player.tiles.filter(tile => 
+        !boardTiles.some(bt => bt.id === tile.id)
+      ).length;
+      
       // Broadcast to other players
       socket.to(room.id).emit('playerBoardUpdate', {
         playerId: socket.id,
         playerName: player.name,
-        boardTiles
+        boardTiles,
+        handSize,
+        boardSize: boardTiles.length
+      });
+    });
+
+    // Update player's hand size (new event)
+    socket.on('updateHandSize', (handSize) => {
+      const pin = socket.data.gamePin;
+      const room = gameRooms.get(pin);
+      
+      if (!room || room.gameState !== 'playing') return;
+      
+      const player = room.players.find(p => p.id === socket.id);
+      if (!player) return;
+      
+      player.handSize = handSize;
+      
+      // Broadcast to all players including sender
+      io.to(room.id).emit('playerHandUpdate', {
+        playerId: socket.id,
+        playerName: player.name,
+        handSize: handSize
+      });
+    });
+
+    // Update tile locations - which tiles are in hand vs on board
+    socket.on('updateTileLocations', (data) => {
+      const pin = socket.data.gamePin;
+      const room = gameRooms.get(pin);
+      
+      if (!room || room.gameState !== 'playing') return;
+      
+      const player = room.players.find(p => p.id === socket.id);
+      if (!player) return;
+      
+      // data should contain: { tilesMovedToBoard: string[], tilesMovedToHand: string[] }
+      const { tilesMovedToBoard, tilesMovedToHand } = data;
+      
+      // Update player's tiles array to reflect current state
+      if (tilesMovedToBoard && tilesMovedToBoard.length > 0) {
+        // These tiles are now on the board, not in hand
+        // Update handSize
+        player.handSize = Math.max(0, (player.handSize || 0) - tilesMovedToBoard.length);
+      }
+      
+      if (tilesMovedToHand && tilesMovedToHand.length > 0) {
+        // These tiles are back in hand
+        // Update handSize
+        player.handSize = (player.handSize || 0) + tilesMovedToHand.length;
+      }
+      
+      // Broadcast hand size update
+      io.to(room.id).emit('playerHandUpdate', {
+        playerId: socket.id,
+        playerName: player.name,
+        handSize: player.handSize
+      });
+    });
+
+    // Get detailed player information
+    socket.on('getPlayerDetails', (targetPlayerName, callback) => {
+      const pin = socket.data.gamePin;
+      const room = gameRooms.get(pin);
+      
+      if (!room || room.gameState !== 'playing') return;
+      
+      const targetPlayer = room.players.find(p => p.name === targetPlayerName);
+      if (!targetPlayer) {
+        callback({ success: false, error: 'Player not found' });
+        return;
+      }
+      
+      // Get tiles in hand (not on board)
+      const tilesInHand = targetPlayer.tiles.filter(tile => 
+        !targetPlayer.boardTiles || !targetPlayer.boardTiles.some(bt => bt.id === tile.id)
+      );
+      
+      callback({
+        success: true,
+        playerName: targetPlayer.name,
+        tilesInHand: tilesInHand.map(t => t.letter), // Just send letters, not full tile objects
+        boardTiles: targetPlayer.boardTiles || [],
+        handSize: tilesInHand.length,
+        boardSize: targetPlayer.boardTiles ? targetPlayer.boardTiles.length : 0
       });
     });
 

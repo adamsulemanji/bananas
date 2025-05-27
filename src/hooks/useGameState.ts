@@ -174,7 +174,6 @@ export function useGameState() {
       
       if (hasNoTiles) {
         // Reset to initial state if loaded state is empty
-        console.log('Loaded state is empty, reinitializing game...');
         setLetterBag([...INITIAL_LETTER_DISTRIBUTION]);
         tileCounterRef.current = 1;
         isInitializedRef.current = false;

@@ -29,7 +29,7 @@ function TrashArea() {
           />
         </svg>
         <span className={`text-sm ${isOver ? 'text-amber-700 font-semibold' : 'text-amber-600'}`}>
-          Return tile to bunch
+          Dump tile for 3 new ones
         </span>
       </div>
     </div>

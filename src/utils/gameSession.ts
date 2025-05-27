@@ -21,6 +21,9 @@ export interface GameSession {
   createdAt: Date;
   lastSaved: Date;
   gameState: any; // Will be properly typed when we implement save/load
+  isCompleted?: boolean;
+  finalScore?: number;
+  completionTime?: number; // Time in seconds
 }
 
 // Mock storage for game sessions (will be replaced with server API)

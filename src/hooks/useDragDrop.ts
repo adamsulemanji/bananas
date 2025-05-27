@@ -16,6 +16,10 @@ interface UseDragDropParams {
   drawTiles: (count: number) => void;
   addTileToHand: (letter: string) => void;
   selectedTileIds: string[];
+  // Optional multiplayer dump handler
+  onDumpTile?: (tileId: string) => Promise<void>;
+  // Optional tile location update handler for server sync
+  onTileLocationUpdate?: (data: { tilesMovedToBoard?: string[]; tilesMovedToHand?: string[] }) => void;
 }
 
 export function useDragDrop({
@@ -29,7 +33,9 @@ export function useDragDrop({
   returnTileToBag,
   drawTiles,
   addTileToHand,
-  selectedTileIds
+  selectedTileIds,
+  onDumpTile,
+  onTileLocationUpdate
 }: UseDragDropParams) {
   
   function handleDragEnd(event: DragEndEvent) {
@@ -56,6 +62,11 @@ export function useDragDrop({
       if (tileFromBoard) {
         addTileToHand(tileFromBoard.content);
         removeTileFromBoard(activeId);
+        
+        // Notify server about tile moved to hand
+        if (onTileLocationUpdate) {
+          onTileLocationUpdate({ tilesMovedToHand: [activeId] });
+        }
       }
       return;
     }
@@ -67,6 +78,17 @@ export function useDragDrop({
         return;
       }
 
+      // Use multiplayer dump if available, otherwise fall back to single-player logic
+      if (onDumpTile) {
+        // For multiplayer: only dump tiles from hand, not from board
+        if (tileFromHand) {
+          onDumpTile(activeId);
+        }
+        // Don't allow dumping tiles from board in multiplayer
+        return;
+      }
+
+      // Single-player logic (fallback)
       let letterToReturn: string | undefined;
       
       if (tileFromHand) {
@@ -102,6 +124,11 @@ export function useDragDrop({
       
       addTileToBoard(newBoardTile);
       removeTileFromHand(activeId);
+      
+      // Notify server about tile moved to board
+      if (onTileLocationUpdate) {
+        onTileLocationUpdate({ tilesMovedToBoard: [activeId] });
+      }
       return;
     }
 
@@ -171,6 +198,9 @@ export function useDragDrop({
             return tile;
           });
         });
+        
+        // Note: For multi-tile board movements, we don't need to update hand size
+        // as tiles are just moving positions on the board
       } else {
         // Handle moving a single tile
         const originCellId = tileFromBoard.position;

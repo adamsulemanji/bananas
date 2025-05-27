@@ -49,12 +49,16 @@ function MultiplayerGameContent() {
     currentRoom,
     playerName,
     isConnected,
+    socket,
     callPeel,
     dumpTile,
     updateBoard,
+    updateHandSize,
+    updateTileLocations,
     onPeelCalled,
     onGameWon,
-    onPlayerDumped
+    onPlayerDumped,
+    onPlayerHandUpdate
   } = useSocket();
   
   const gridCellIds = generateGridCellIds();
@@ -66,6 +70,9 @@ function MultiplayerGameContent() {
   const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
   const [gameStatus, setGameStatus] = useState<string>('');
   const [winner, setWinner] = useState<{ id: string; name: string } | null>(null);
+  const [playerHandSizes, setPlayerHandSizes] = useState<Record<string, number>>({});
+  const [playerBoardSizes, setPlayerBoardSizes] = useState<Record<string, number>>({});
+  const [isLastRound, setIsLastRound] = useState(false);
 
   // Configure sensors to capture initial cursor position
   const sensors = useSensors(
@@ -77,35 +84,93 @@ function MultiplayerGameContent() {
   );
 
   useEffect(() => {
-    if (!roomPin || !currentRoom) {
+    // If there's no roomPin, then it's an invalid state to be on this page.
+    if (!roomPin) {
       router.push('/');
       return;
     }
 
-    // Listen for peel events
+    // If we are not connected yet, or currentRoom is not yet loaded for the given roomPin,
+    // don't set up listeners or try to redirect yet. The main render body will show a loading indicator.
+    if (!isConnected || !currentRoom) {
+      return; 
+    }
+    
+    // Ensure the currentRoom loaded matches the PIN from URL, otherwise redirect.
+    // This handles cases where a user might land with a valid PIN for a room that no longer exists or has changed.
+    if (currentRoom.pin !== roomPin) {
+        router.push('/');
+        return;
+    }
+
     const unsubscribePeel = onPeelCalled((data) => {
       setGameStatus(`${data.callerName} called PEEL! Everyone gets a new tile.`);
       gameState.handlePeelEvent(data);
+      
+      // Check if it's the last round
+      if (data.isLastRound) {
+        setIsLastRound(true);
+        setGameStatus(`${data.callerName} called PEEL! LAST ROUND - Next player to finish wins!`);
+      }
+      
       setTimeout(() => setGameStatus(''), 3000);
     });
 
-    // Listen for game won
     const unsubscribeWon = onGameWon((data) => {
       setWinner({ id: data.winnerId, name: data.winnerName });
     });
 
-    // Listen for dumps
     const unsubscribeDump = onPlayerDumped((data) => {
       setGameStatus(`${data.playerName} dumped a tile. ${data.remainingTiles} tiles left.`);
+      gameState.handlePlayerDumpEvent(data);
       setTimeout(() => setGameStatus(''), 3000);
     });
 
-    return () => {
+    const unsubscribeHandUpdate = onPlayerHandUpdate((data) => {
+      setPlayerHandSizes(prev => ({
+        ...prev,
+        [data.playerName]: data.handSize
+      }));
+    });
+
+    // Subscribe to player board updates
+    const unsubscribeBoardUpdate = socket ? (() => {
+      const handler = (data: any) => {
+        setPlayerHandSizes(prev => ({
+          ...prev,
+          [data.playerName]: data.handSize
+        }));
+        setPlayerBoardSizes(prev => ({
+          ...prev,
+          [data.playerName]: data.boardSize
+        }));
+      };
+      socket.on('playerBoardUpdate', handler);
+      return () => socket.off('playerBoardUpdate', handler);
+    })() : undefined;
+
+    return () => { 
       unsubscribePeel();
       unsubscribeWon();
       unsubscribeDump();
+      unsubscribeHandUpdate();
+      if (unsubscribeBoardUpdate) {
+        unsubscribeBoardUpdate();
+      }
     };
-  }, [roomPin, currentRoom, onPeelCalled, onGameWon, onPlayerDumped, gameState, router]);
+  }, [
+    roomPin, 
+    currentRoom, // Effect should re-run if currentRoom reference changes (e.g. new room loaded)
+    isConnected, 
+    onPeelCalled, 
+    onGameWon, 
+    onPlayerDumped,
+    onPlayerHandUpdate,
+    gameState.handlePeelEvent, // Now stable due to useCallback
+    gameState.handlePlayerDumpEvent, // Now stable due to useCallback
+    router 
+    // gameState object itself is removed from dependencies
+  ]);
 
   // Update board state when tiles change
   useEffect(() => {
@@ -114,19 +179,54 @@ function MultiplayerGameContent() {
     }
   }, [gameState.tiles, updateBoard]);
 
-  const handleCallPeel = async () => {
-    if (gameState.playerHand.length > 0) {
-      setGameStatus('You still have tiles in your hand!');
-      setTimeout(() => setGameStatus(''), 3000);
-      return;
-    }
+  // Track if we're in a drag operation to avoid duplicate hand size updates
+  const [isDragging, setIsDragging] = useState(false);
 
-    const result = await callPeel();
-    if (!result.success) {
-      setGameStatus(result.error || 'Failed to call peel');
-      setTimeout(() => setGameStatus(''), 3000);
+  // Update hand size when player hand changes (but not during drag operations)
+  useEffect(() => {
+    if (!isDragging) {
+      updateHandSize(gameState.playerHand.length);
     }
-  };
+  }, [gameState.playerHand.length, updateHandSize, isDragging]);
+
+  // Automatically call peel when player runs out of tiles (but not on initial load)
+  const [hasInitialTiles, setHasInitialTiles] = useState(false);
+  const [isCallingPeel, setIsCallingPeel] = useState(false);
+  
+  useEffect(() => {
+    if (gameState.playerHand.length > 0) {
+      setHasInitialTiles(true);
+    }
+  }, [gameState.playerHand.length]);
+  
+  useEffect(() => {
+    if (gameState.playerHand.length === 0 && 
+        currentRoom?.gameState === 'playing' && 
+        hasInitialTiles && 
+        !isCallingPeel &&
+        gameState.tiles.length > 0) {
+      // Add a small delay to ensure the game state is fully updated
+      const timer = setTimeout(async () => {
+        // Double-check that we still have no tiles in hand
+        if (gameState.playerHand.length === 0 && !isCallingPeel && gameState.tiles.length > 0) {
+          setIsCallingPeel(true);
+          setGameStatus('You ran out of tiles! Calling PEEL...');
+          const result = await callPeel();
+          if (!result.success) {
+            setGameStatus(result.error || 'Failed to call peel');
+            setTimeout(() => setGameStatus(''), 3000);
+          } else if (result.won) {
+            // Game won will be handled by the onGameWon event
+          } else {
+            setTimeout(() => setGameStatus(''), 2000);
+          }
+          setIsCallingPeel(false);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.playerHand.length, gameState.tiles.length, currentRoom?.gameState, callPeel, hasInitialTiles, isCallingPeel]);
 
   const handleDumpTile = async (tileId: string) => {
     const result = await dumpTile(tileId);
@@ -203,11 +303,14 @@ function MultiplayerGameContent() {
     returnTileToBag: gameState.returnTileToBag,
     drawTiles: gameState.drawTiles,
     addTileToHand: gameState.addTileToHand,
-    selectedTileIds: selectedTileIds
+    selectedTileIds: selectedTileIds,
+    onDumpTile: handleDumpTile,
+    onTileLocationUpdate: updateTileLocations
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {
     setIsDndDragging(true);
+    setIsDragging(true);
 
     const activeId = event.active.id as string;
     const isBoardTileDrag = !!gameState.getBoardTile(activeId);
@@ -264,6 +367,7 @@ function MultiplayerGameContent() {
   const handleDndDragEnd = (event: DndKitDragEndEvent) => {
     dndHandlers.handleDragEnd(event);
     setIsDndDragging(false);
+    setIsDragging(false);
     setActiveDragData(null);
     // Clear selection after dropping to revert tile colors
     setSelectedTileIds([]);
@@ -358,8 +462,13 @@ function MultiplayerGameContent() {
             PIN: <span className="font-mono font-bold">{roomPin}</span>
           </div>
           <div className="text-sm text-gray-600">
-            {gameState.remainingTiles} tiles left
+            {gameState.remainingTiles} tiles left in bag
           </div>
+          {isLastRound && (
+            <div className="text-sm font-bold text-red-600 animate-pulse">
+              🏁 LAST ROUND
+            </div>
+          )}
           <button 
             onClick={() => {
               if (window.confirm('Are you sure you want to leave the game?')) {
@@ -393,32 +502,14 @@ function MultiplayerGameContent() {
             <div className="mb-4 p-3 border border-amber-800 rounded-md bg-amber-50">
               <div className="flex justify-between items-center mb-2">
                 <h2 className="font-semibold text-black text-sm">Your Tiles ({gameState.playerHand.length})</h2>
-                <button
-                  onClick={handleCallPeel}
-                  disabled={gameState.playerHand.length > 0}
-                  className={`px-4 py-1 text-sm font-bold rounded transition-colors ${
-                    gameState.playerHand.length === 0
-                      ? 'bg-green-500 hover:bg-green-600 text-white'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  PEEL!
-                </button>
               </div>
               <div className="flex flex-wrap gap-1">
                 {gameState.playerHand.map((tile) => (
-                  <div key={tile.id} className="w-8 h-8 relative">
+                  <div key={tile.id} className="w-8 h-8">
                     <GridTile
                       id={tile.id}
                       content={tile.letter}
                     />
-                    <button
-                      onClick={() => handleDumpTile(tile.id)}
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center"
-                      title="Dump this tile for 3 new ones"
-                    >
-                      ×
-                    </button>
                   </div>
                 ))}
               </div>
@@ -489,16 +580,42 @@ function MultiplayerGameContent() {
           <div className="w-64 bg-white rounded-lg shadow-lg p-4">
             <h3 className="font-bold text-gray-800 mb-3">Other Players</h3>
             <div className="space-y-2">
-              {otherPlayers.map((player) => (
-                <div key={player.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-gray-700">{player.name}</span>
-                    <span className="text-sm text-gray-500">
-                      {player.tiles.length} tiles
-                    </span>
+              {otherPlayers.map((player) => {
+                const handSize = player.handSize ?? playerHandSizes[player.name] ?? player.tiles.length;
+                const boardSize = player.boardSize ?? playerBoardSizes[player.name] ?? 0;
+                return (
+                  <div key={player.id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-gray-700">{player.name}</span>
+                      <div className="text-right">
+                        <div className={`text-sm ${handSize === 0 ? 'text-green-600 font-bold' : 'text-gray-500'}`}>
+                          Hand: {handSize}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Board: {boardSize}
+                        </div>
+                        {player.isHost && (
+                          <div className="text-xs text-amber-600 font-medium">HOST</div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+            
+            {/* Game Info */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>Tiles in bag: {gameState.remainingTiles}</div>
+                <div>Your hand: {gameState.playerHand.length}</div>
+                <div>Your board: {gameState.tiles.length}</div>
+                {isLastRound && (
+                  <div className="text-red-600 font-bold mt-2">
+                    🏁 Last Round - Next to finish wins!
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -598,10 +715,11 @@ function MultiplayerGameContent() {
         </DragOverlay>
       </DndContext>
       
-      <div className="mt-4 text-xs text-gray-600">
+      <div className="mt-4 text-xs text-gray-600 text-center space-y-1">
         {selectedTileIds.length > 0 && 
           <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together. Press T to transpose.</p>
         }
+        <p>Drag tiles from your hand to the trash area to dump them for 3 new ones.</p>
       </div>
     </main>
   );

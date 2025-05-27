@@ -189,7 +189,7 @@ export default function LandingPage() {
                   setRestoreError(null);
                 }}
                 placeholder="Enter PIN"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-mono focus:border-amber-500 focus:outline-none"
+                className="text-black w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-mono focus:border-amber-500 focus:outline-none"
                 maxLength={4}
               />
               {restoreError && (
@@ -313,7 +313,7 @@ export default function LandingPage() {
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-amber-500 focus:outline-none"
+                  className="text-black w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-amber-500 focus:outline-none"
                   maxLength={20}
                 />
               </div>
@@ -331,7 +331,7 @@ export default function LandingPage() {
                       setJoinPin(value);
                     }}
                     placeholder="Enter 4-digit PIN"
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-xl font-mono focus:border-amber-500 focus:outline-none"
+                    className="text-black w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-xl font-mono focus:border-amber-500 focus:outline-none"
                     maxLength={4}
                   />
                 </div>

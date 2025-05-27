@@ -5,6 +5,8 @@ export interface MultiplayerPlayer {
   boardTiles?: BoardTile[];
   isHost: boolean;
   isReady: boolean;
+  handSize?: number;
+  boardSize?: number;
 }
 
 export interface MultiplayerRoom {
@@ -37,6 +39,7 @@ export interface PeelData {
   callerName: string;
   players: MultiplayerPlayer[];
   remainingTiles: number;
+  isLastRound: boolean;
 }
 
 export interface GameWonData {
@@ -48,6 +51,8 @@ export interface PlayerBoardUpdateData {
   playerId: string;
   playerName: string;
   boardTiles: BoardTile[];
+  handSize: number;
+  boardSize: number;
 }
 
 export interface PlayerLeftData {
@@ -60,4 +65,10 @@ export interface DumpData {
   playerId: string;
   playerName: string;
   remainingTiles: number;
+}
+
+export interface PlayerHandUpdateData {
+  playerId: string;
+  playerName: string;
+  handSize: number;
 } 

@@ -10,7 +10,8 @@ import {
   PlayerBoardUpdateData,
   PlayerLeftData,
   DumpData,
-  BoardTile
+  BoardTile,
+  PlayerHandUpdateData
 } from '@/types/multiplayer';
 
 interface SocketContextType {
@@ -19,6 +20,7 @@ interface SocketContextType {
   currentRoom: MultiplayerRoom | null;
   playerName: string;
   setPlayerName: (name: string) => void;
+  gameStartData: GameStartData | null;
   
   // Room operations
   createRoom: (playerName: string) => Promise<{ success: boolean; pin?: string; gameId?: string; error?: string }>;
@@ -30,6 +32,8 @@ interface SocketContextType {
   callPeel: () => Promise<{ success: boolean; won?: boolean; error?: string }>;
   dumpTile: (tileId: string) => Promise<{ success: boolean; newTiles?: any[]; error?: string }>;
   updateBoard: (boardTiles: BoardTile[]) => void;
+  updateHandSize: (handSize: number) => void;
+  updateTileLocations: (data: { tilesMovedToBoard?: string[]; tilesMovedToHand?: string[] }) => void;
   
   // Event listeners - components can use these to react to game events
   onRoomUpdate: (callback: (room: MultiplayerRoom) => void) => () => void;
@@ -39,6 +43,7 @@ interface SocketContextType {
   onPlayerBoardUpdate: (callback: (data: PlayerBoardUpdateData) => void) => () => void;
   onPlayerLeft: (callback: (data: PlayerLeftData) => void) => () => void;
   onPlayerDumped: (callback: (data: DumpData) => void) => () => void;
+  onPlayerHandUpdate: (callback: (data: PlayerHandUpdateData) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -56,10 +61,13 @@ interface SocketProviderProps {
 }
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
+  
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<MultiplayerRoom | null>(null);
   const [playerName, setPlayerName] = useState('');
+  const [gameStartData, setGameStartData] = useState<GameStartData | null>(null);
+  
 
   useEffect(() => {
     // Initialize socket connection
@@ -68,17 +76,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     socketInstance.on('connect', () => {
-      console.log('Connected to server');
       setIsConnected(true);
     });
 
     socketInstance.on('disconnect', () => {
-      console.log('Disconnected from server');
       setIsConnected(false);
     });
 
     socketInstance.on('roomUpdate', (room: MultiplayerRoom) => {
       setCurrentRoom(room);
+    });
+
+    socketInstance.on('gameStart', (data: GameStartData) => {
+      setGameStartData(data);
     });
 
     setSocket(socketInstance);
@@ -171,6 +181,16 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     socket.emit('updateBoard', boardTiles);
   };
 
+  const updateHandSize = (handSize: number) => {
+    if (!socket) return;
+    socket.emit('updateHandSize', handSize);
+  };
+
+  const updateTileLocations = (data: { tilesMovedToBoard?: string[]; tilesMovedToHand?: string[] }) => {
+    if (!socket) return;
+    socket.emit('updateTileLocations', data);
+  };
+
   // Event listener helpers
   const onRoomUpdate = (callback: (room: MultiplayerRoom) => void) => {
     if (!socket) return () => {};
@@ -179,9 +199,17 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   };
 
   const onGameStart = (callback: (data: GameStartData) => void) => {
-    if (!socket) return () => {};
-    socket.on('gameStart', callback);
-    return () => { socket.off('gameStart', callback); };
+    // This is kept for backward compatibility but the main logic now uses stored gameStartData
+    if (!socket) {
+      return () => {};
+    }
+    const wrappedCallback = (data: GameStartData) => {
+      callback(data);
+    };
+    socket.on('gameStart', wrappedCallback);
+    return () => { 
+      socket.off('gameStart', wrappedCallback); 
+    };
   };
 
   const onPeelCalled = (callback: (data: PeelData) => void) => {
@@ -214,12 +242,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     return () => { socket.off('playerDumped', callback); };
   };
 
+  const onPlayerHandUpdate = (callback: (data: PlayerHandUpdateData) => void) => {
+    if (!socket) return () => {};
+    socket.on('playerHandUpdate', callback);
+    return () => { socket.off('playerHandUpdate', callback); };
+  };
+
   const value: SocketContextType = {
     socket,
     isConnected,
     currentRoom,
     playerName,
     setPlayerName,
+    gameStartData,
     createRoom,
     joinRoom,
     toggleReady,
@@ -227,6 +262,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     callPeel,
     dumpTile,
     updateBoard,
+    updateHandSize,
+    updateTileLocations,
     onRoomUpdate,
     onGameStart,
     onPeelCalled,
@@ -234,6 +271,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     onPlayerBoardUpdate,
     onPlayerLeft,
     onPlayerDumped,
+    onPlayerHandUpdate,
   };
 
   return (
