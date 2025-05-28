@@ -12,6 +12,8 @@ import {
   DumpData,
   BoardTile,
   PlayerHandUpdateData,
+  PlayerKickedData,
+  KickedData,
 } from '@/types/multiplayer';
 
 interface SocketContextType {
@@ -32,6 +34,7 @@ interface SocketContextType {
   ) => Promise<{ success: boolean; gameId?: string; error?: string }>;
   toggleReady: () => void;
   startGame: () => Promise<{ success: boolean; error?: string }>;
+  kickPlayer: (playerId: string) => Promise<{ success: boolean; error?: string }>;
 
   // Game operations
   callPeel: () => Promise<{ success: boolean; won?: boolean; error?: string }>;
@@ -52,6 +55,8 @@ interface SocketContextType {
   onPlayerLeft: (callback: (data: PlayerLeftData) => void) => () => void;
   onPlayerDumped: (callback: (data: DumpData) => void) => () => void;
   onPlayerHandUpdate: (callback: (data: PlayerHandUpdateData) => void) => () => void;
+  onPlayerKicked: (callback: (data: PlayerKickedData) => void) => () => void;
+  onKicked: (callback: (data: KickedData) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -155,6 +160,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       }
 
       socket.emit('startGame', (response: any) => {
+        resolve(response);
+      });
+    });
+  };
+
+  const kickPlayer = async (playerId: string): Promise<{ success: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      if (!socket) {
+        resolve({ success: false, error: 'Not connected to server' });
+        return;
+      }
+
+      socket.emit('kickPlayer', playerId, (response: any) => {
         resolve(response);
       });
     });
@@ -278,6 +296,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     };
   };
 
+  const onPlayerKicked = (callback: (data: PlayerKickedData) => void) => {
+    if (!socket) return () => {};
+    socket.on('playerKicked', callback);
+    return () => {
+      socket.off('playerKicked', callback);
+    };
+  };
+
+  const onKicked = (callback: (data: KickedData) => void) => {
+    if (!socket) return () => {};
+    socket.on('kicked', callback);
+    return () => {
+      socket.off('kicked', callback);
+    };
+  };
+
   const value: SocketContextType = {
     socket,
     isConnected,
@@ -289,6 +323,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     joinRoom,
     toggleReady,
     startGame,
+    kickPlayer,
     callPeel,
     dumpTile,
     updateBoard,
@@ -302,6 +337,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     onPlayerLeft,
     onPlayerDumped,
     onPlayerHandUpdate,
+    onPlayerKicked,
+    onKicked,
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

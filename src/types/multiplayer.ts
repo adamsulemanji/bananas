@@ -72,3 +72,12 @@ export interface PlayerHandUpdateData {
   playerName: string;
   handSize: number;
 }
+
+export interface PlayerKickedData {
+  playerId: string;
+  playerName: string;
+}
+
+export interface KickedData {
+  reason: string;
+}

@@ -553,6 +553,77 @@ app.prepare().then(() => {
       });
     });
 
+    // Kick player (host only)
+    socket.on('kickPlayer', (targetPlayerId, callback) => {
+      const pin = socket.data.gamePin;
+      const room = gameRooms.get(pin);
+
+      if (!room) {
+        callback({ success: false, error: 'Room not found' });
+        return;
+      }
+
+      // Check if the requester is the host
+      if (room.host !== socket.id) {
+        callback({ success: false, error: 'Only the host can kick players' });
+        return;
+      }
+
+      // Can't kick during an active game
+      if (room.gameState !== 'waiting') {
+        callback({ success: false, error: 'Cannot kick players during an active game' });
+        return;
+      }
+
+      // Find the target player
+      const targetPlayer = room.players.find((p) => p.id === targetPlayerId);
+      if (!targetPlayer) {
+        callback({ success: false, error: 'Player not found' });
+        return;
+      }
+
+      // Can't kick yourself
+      if (targetPlayerId === socket.id) {
+        callback({ success: false, error: 'You cannot kick yourself' });
+        return;
+      }
+
+      // Remove the player from the room
+      room.players = room.players.filter((p) => p.id !== targetPlayerId);
+
+      // Get the socket of the kicked player and make them leave the room
+      const kickedSocket = io.sockets.sockets.get(targetPlayerId);
+      if (kickedSocket) {
+        kickedSocket.leave(room.id);
+        // Notify the kicked player
+        kickedSocket.emit('kicked', {
+          reason: 'You have been kicked from the room by the host',
+        });
+      }
+
+      callback({ success: true });
+
+      // Notify all remaining players
+      io.to(room.id).emit('playerKicked', {
+        playerId: targetPlayerId,
+        playerName: targetPlayer.name,
+      });
+
+      // Send updated room info
+      io.to(room.id).emit('roomUpdate', {
+        ...room,
+        players: room.players.map((p) => ({
+          ...p,
+          handSize: p.tiles
+            ? p.tiles.filter(
+                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
+              ).length
+            : 0,
+          boardSize: p.boardTiles ? p.boardTiles.length : 0,
+        })),
+      });
+    });
+
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);

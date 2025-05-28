@@ -15,13 +15,17 @@ function MultiplayerLobbyContent() {
     isConnected,
     toggleReady,
     startGame,
+    kickPlayer,
     onRoomUpdate,
     onGameStart,
     onPlayerLeft,
+    onPlayerKicked,
+    onKicked,
   } = useSocket();
 
   const [error, setError] = useState<string>('');
   const [isStarting, setIsStarting] = useState(false);
+  const [kickingPlayer, setKickingPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     if (!roomPin) {
@@ -41,12 +45,25 @@ function MultiplayerLobbyContent() {
     // Listen for players leaving
     const unsubscribePlayerLeft = onPlayerLeft((data) => {});
 
+    // Listen for being kicked
+    const unsubscribeKicked = onKicked((data) => {
+      alert(data.reason);
+      router.push('/');
+    });
+
+    // Listen for other players being kicked
+    const unsubscribePlayerKicked = onPlayerKicked((data) => {
+      // Optionally show a notification that a player was kicked
+    });
+
     return () => {
       unsubscribeRoom();
       unsubscribeGameStart();
       unsubscribePlayerLeft();
+      unsubscribeKicked();
+      unsubscribePlayerKicked();
     };
-  }, [roomPin, router, onRoomUpdate, onGameStart, onPlayerLeft]);
+  }, [roomPin, router, onRoomUpdate, onGameStart, onPlayerLeft, onKicked, onPlayerKicked]);
 
   const handleStartGame = async () => {
     setIsStarting(true);
@@ -57,6 +74,21 @@ function MultiplayerLobbyContent() {
       setError(result.error || 'Failed to start game');
       setIsStarting(false);
     }
+  };
+
+  const handleKickPlayer = async (playerId: string, playerName: string) => {
+    if (!window.confirm(`Are you sure you want to kick ${playerName}?`)) {
+      return;
+    }
+
+    setKickingPlayer(playerId);
+    const result = await kickPlayer(playerId);
+    
+    if (!result.success) {
+      setError(result.error || 'Failed to kick player');
+      setTimeout(() => setError(''), 3000);
+    }
+    setKickingPlayer(null);
   };
 
   const handleLeaveRoom = () => {
@@ -132,13 +164,27 @@ function MultiplayerLobbyContent() {
 
                 <div className="flex items-center gap-2">
                   {!player.isHost && (
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                        player.isReady ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {player.isReady ? '✓ Ready' : 'Not Ready'}
-                    </span>
+                    <>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          player.isReady ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {player.isReady ? '✓ Ready' : 'Not Ready'}
+                      </span>
+                      
+                      {/* Kick button - only visible to host */}
+                      {isHost && player.name !== playerName && (
+                        <button
+                          onClick={() => handleKickPlayer(player.id, player.name)}
+                          disabled={kickingPlayer === player.id}
+                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-full text-sm font-semibold transition-colors disabled:opacity-50"
+                          title="Kick player"
+                        >
+                          {kickingPlayer === player.id ? '...' : 'Kick'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
