@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  generateGameId, 
-  generatePin, 
-  saveGameSession, 
+import {
+  generateGameId,
+  generatePin,
+  saveGameSession,
   getGameSessionByPin,
   getRecentSessions,
-  GameSession 
+  GameSession,
 } from '../utils/gameSession';
 import GameManagement from './components/GameManagement';
 import { useSocket } from '@/contexts/SocketContext';
@@ -23,7 +23,7 @@ export default function LandingPage() {
   const [recentGames, setRecentGames] = useState<GameSession[]>([]);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [showGameManagement, setShowGameManagement] = useState(false);
-  
+
   // Multiplayer states
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [multiplayerMode, setMultiplayerMode] = useState<'create' | 'join' | null>(null);
@@ -31,7 +31,7 @@ export default function LandingPage() {
   const [joinPin, setJoinPin] = useState('');
   const [multiplayerError, setMultiplayerError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const { createRoom, joinRoom, isConnected } = useSocket();
 
   // Load recent games on mount
@@ -42,22 +42,22 @@ export default function LandingPage() {
 
   const handleStartNewGame = async () => {
     setIsCreatingGame(true);
-    
+
     // Generate new game session
     const gameId = generateGameId();
     const pin = generatePin();
-    
+
     const newSession: GameSession = {
       gameId,
       pin,
       createdAt: new Date(),
       lastSaved: new Date(),
-      gameState: '' // Empty string instead of empty object - will trigger proper initialization
+      gameState: '', // Empty string instead of empty object - will trigger proper initialization
     };
-    
+
     // Save session to local storage (will be server in future)
     saveGameSession(newSession);
-    
+
     // Navigate to game
     router.push(`/game/${gameId}`);
   };
@@ -65,12 +65,12 @@ export default function LandingPage() {
   const handleRestoreGame = (e: React.FormEvent) => {
     e.preventDefault();
     setRestoreError(null);
-    
+
     if (restorePin.length !== 4) {
       setRestoreError('PIN must be 4 digits');
       return;
     }
-    
+
     const session = getGameSessionByPin(restorePin);
     if (session) {
       router.push(`/game/${session.gameId}`);
@@ -84,12 +84,12 @@ export default function LandingPage() {
       setMultiplayerError('Please enter your name');
       return;
     }
-    
+
     setIsProcessing(true);
     setMultiplayerError('');
-    
+
     const result = await createRoom(playerName);
-    
+
     if (result.success && result.pin) {
       router.push(`/multiplayer/lobby?pin=${result.pin}`);
     } else {
@@ -97,23 +97,23 @@ export default function LandingPage() {
       setIsProcessing(false);
     }
   };
-  
+
   const handleJoinMultiplayerRoom = async () => {
     if (!playerName.trim()) {
       setMultiplayerError('Please enter your name');
       return;
     }
-    
+
     if (joinPin.length !== 4) {
       setMultiplayerError('PIN must be 4 digits');
       return;
     }
-    
+
     setIsProcessing(true);
     setMultiplayerError('');
-    
+
     const result = await joinRoom(joinPin, playerName);
-    
+
     if (result.success) {
       router.push(`/multiplayer/lobby?pin=${joinPin}`);
     } else {
@@ -127,7 +127,7 @@ export default function LandingPage() {
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 60) {
       return `${diffMins} minutes ago`;
     } else if (diffMins < 1440) {
@@ -166,9 +166,7 @@ export default function LandingPage() {
                   Creating Game...
                 </>
               ) : (
-                <>
-                  🎮 Start Single Player
-                </>
+                <>🎮 Start Single Player</>
               )}
             </button>
           </div>
@@ -176,9 +174,7 @@ export default function LandingPage() {
           {/* Restore Game */}
           <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Continue Game</h2>
-            <p className="text-gray-600 mb-6">
-              Enter your 4-digit PIN to restore a previous game.
-            </p>
+            <p className="text-gray-600 mb-6">Enter your 4-digit PIN to restore a previous game.</p>
             <form onSubmit={handleRestoreGame} className="space-y-4">
               <input
                 type="text"
@@ -192,9 +188,7 @@ export default function LandingPage() {
                 className="text-black w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-mono focus:border-amber-500 focus:outline-none"
                 maxLength={4}
               />
-              {restoreError && (
-                <p className="text-red-500 text-sm">{restoreError}</p>
-              )}
+              {restoreError && <p className="text-red-500 text-sm">{restoreError}</p>}
               <button
                 type="submit"
                 className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
@@ -257,9 +251,7 @@ export default function LandingPage() {
                       Last played {formatDate(game.lastSaved)}
                     </p>
                   </div>
-                  <button className="text-amber-600 hover:text-amber-700">
-                    Continue →
-                  </button>
+                  <button className="text-amber-600 hover:text-amber-700">Continue →</button>
                 </div>
               ))}
             </div>
@@ -275,22 +267,16 @@ export default function LandingPage() {
             {showGameManagement ? 'Hide' : 'Show'} Advanced Options
           </button>
         </div>
-        
+
         {showGameManagement && <GameManagement />}
 
         {/* Coming Soon Section */}
         <div className="mt-12 text-center text-gray-500">
           <p className="text-sm mb-2">Coming Soon</p>
           <div className="flex gap-4 justify-center">
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
-              🏆 Leaderboards
-            </span>
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
-              📱 Mobile App
-            </span>
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">
-              🎨 Custom Themes
-            </span>
+            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">🏆 Leaderboards</span>
+            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">📱 Mobile App</span>
+            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">🎨 Custom Themes</span>
           </div>
         </div>
       </div>
@@ -302,12 +288,10 @@ export default function LandingPage() {
             <h3 className="text-2xl font-bold text-gray-800 mb-4">
               {multiplayerMode === 'create' ? 'Create Multiplayer Room' : 'Join Multiplayer Room'}
             </h3>
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                 <input
                   type="text"
                   value={playerName}
@@ -317,12 +301,10 @@ export default function LandingPage() {
                   maxLength={20}
                 />
               </div>
-              
+
               {multiplayerMode === 'join' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Room PIN
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Room PIN</label>
                   <input
                     type="text"
                     value={joinPin}
@@ -336,18 +318,24 @@ export default function LandingPage() {
                   />
                 </div>
               )}
-              
-              {multiplayerError && (
-                <p className="text-red-500 text-sm">{multiplayerError}</p>
-              )}
-              
+
+              {multiplayerError && <p className="text-red-500 text-sm">{multiplayerError}</p>}
+
               <div className="flex gap-4 mt-6">
                 <button
-                  onClick={multiplayerMode === 'create' ? handleCreateMultiplayerRoom : handleJoinMultiplayerRoom}
+                  onClick={
+                    multiplayerMode === 'create'
+                      ? handleCreateMultiplayerRoom
+                      : handleJoinMultiplayerRoom
+                  }
                   disabled={isProcessing}
                   className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {isProcessing ? 'Processing...' : multiplayerMode === 'create' ? 'Create Room' : 'Join Room'}
+                  {isProcessing
+                    ? 'Processing...'
+                    : multiplayerMode === 'create'
+                      ? 'Create Room'
+                      : 'Join Room'}
                 </button>
                 <button
                   onClick={() => {

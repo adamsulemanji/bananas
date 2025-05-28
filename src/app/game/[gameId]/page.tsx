@@ -2,16 +2,16 @@
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-  DndContext, 
-  closestCenter, 
-  DragStartEvent, 
+import {
+  DndContext,
+  closestCenter,
+  DragStartEvent,
   DragEndEvent as DndKitDragEndEvent,
   DragOverlay,
   Active,
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
 } from '@dnd-kit/core';
 import GridCell from '../../components/GridCell';
 import GridTile from '../../components/GridTile';
@@ -50,14 +50,19 @@ export default function GamePage() {
   const [hasWon, setHasWon] = useState(false);
   const [gameStartTime, setGameStartTime] = useState(Date.now());
   const [finalScore, setFinalScore] = useState<number | null>(null);
-  
+
   const gridCellIds = generateGridCellIds();
   const gameState = useGameState();
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
-  const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
+  const [selectionBox, setSelectionBox] = useState<null | {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(null);
 
   // Configure sensors to capture initial cursor position
   const sensors = useSensors(
@@ -74,7 +79,11 @@ export default function GamePage() {
     if (session) {
       setGamePin(session.pin);
       // Load game state from session if it exists and is not empty
-      if (session.gameState && typeof session.gameState === 'string' && session.gameState.length > 0) {
+      if (
+        session.gameState &&
+        typeof session.gameState === 'string' &&
+        session.gameState.length > 0
+      ) {
         try {
           gameState.loadFromSerialized(session.gameState);
         } catch (error) {
@@ -82,7 +91,6 @@ export default function GamePage() {
           // If loading fails, the game will initialize normally
         }
       }
-      // If gameState is empty or invalid, the game will initialize with 21 tiles automatically
     } else {
       // If no session found, redirect to home
       router.push('/');
@@ -92,10 +100,10 @@ export default function GamePage() {
   // Auto-save game state every 3 seconds when there are changes
   useEffect(() => {
     if (!gamePin) return;
-    
+
     const saveInterval = setInterval(() => {
       setSaveStatus('saving');
-      
+
       try {
         const session = getGameSession(gameId);
         if (session) {
@@ -104,9 +112,6 @@ export default function GamePage() {
           session.lastSaved = new Date();
           saveGameSession(session);
           setSaveStatus('saved');
-          
-          // In the future, this would be an API call:
-          // await saveGameToServer(gameId, session);
         }
       } catch (error) {
         console.error('Failed to save game:', error);
@@ -121,16 +126,21 @@ export default function GamePage() {
   useEffect(() => {
     // Player wins when they have no tiles in hand AND no tiles remaining in the bag
     // Must have at least some tiles on the board to win
-    if (gameState.playerHand.length === 0 && gameState.getRemainingTileCount() === 0 && gameState.tiles.length > 0 && !hasWon) {
+    if (
+      gameState.playerHand.length === 0 &&
+      gameState.getRemainingTileCount() === 0 &&
+      gameState.tiles.length > 0 &&
+      !hasWon
+    ) {
       // Calculate score based on time taken (in seconds)
       const timeTaken = Math.floor((Date.now() - gameStartTime) / 1000);
       const baseScore = 10000;
       const timeBonus = Math.max(0, 3600 - timeTaken) * 10; // Bonus for finishing under 1 hour
       const totalScore = baseScore + timeBonus;
-      
+
       setFinalScore(totalScore);
       setHasWon(true);
-      
+
       // Save the win state
       setSaveStatus('saving');
       try {
@@ -149,7 +159,13 @@ export default function GamePage() {
         setSaveStatus('error');
       }
     }
-  }, [gameState.playerHand.length, gameState.getRemainingTileCount, gameState.tiles.length, gameId, gameStartTime]);
+  }, [
+    gameState.playerHand.length,
+    gameState.getRemainingTileCount,
+    gameState.tiles.length,
+    gameId,
+    gameStartTime,
+  ]);
 
   const handleSelectTiles = useCallback((ids: string[]) => {
     setSelectedTileIds(ids);
@@ -160,30 +176,34 @@ export default function GamePage() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 't' && selectedTileIds.length > 0) {
         const selectedBoardTiles = selectedTileIds
-          .map(id => gameState.getBoardTile(id))
-          .filter(tile => tile !== undefined) as BoardTile[];
-        
+          .map((id) => gameState.getBoardTile(id))
+          .filter((tile) => tile !== undefined) as BoardTile[];
+
         if (selectedBoardTiles.length === 0) return;
-        
+
         const newPositions = transposeTiles(selectedBoardTiles);
         if (!newPositions) return; // Can't transpose (would go out of bounds)
-        
+
         // Check if any of the new positions are occupied by non-selected tiles
         let canTranspose = true;
-        const selectedPositions = new Set(selectedBoardTiles.map(t => t.position));
-        
+        const selectedPositions = new Set(selectedBoardTiles.map((t) => t.position));
+
         newPositions.forEach((newPos) => {
           const occupyingTile = gameState.getTileAtPosition(newPos);
-          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id) && !selectedPositions.has(newPos)) {
+          if (
+            occupyingTile &&
+            !selectedTileIds.includes(occupyingTile.id) &&
+            !selectedPositions.has(newPos)
+          ) {
             canTranspose = false;
           }
         });
-        
+
         if (!canTranspose) return;
-        
+
         // Apply the transpose
-        gameState.updateTilePositions(prevTiles => {
-          return prevTiles.map(tile => {
+        gameState.updateTilePositions((prevTiles) => {
+          return prevTiles.map((tile) => {
             const newPosition = newPositions.get(tile.id);
             if (newPosition) {
               return { ...tile, position: newPosition };
@@ -193,7 +213,7 @@ export default function GamePage() {
         });
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [selectedTileIds, gameState]);
@@ -204,7 +224,7 @@ export default function GamePage() {
     onSelectTiles: handleSelectTiles,
     isEnabled: !isDndDragging,
   });
-  
+
   const dndHandlers = useDragDrop({
     getHandTile: gameState.getHandTile,
     getBoardTile: gameState.getBoardTile,
@@ -216,7 +236,7 @@ export default function GamePage() {
     returnTileToBag: gameState.returnTileToBag,
     drawTiles: gameState.drawTiles,
     addTileToHand: gameState.addTileToHand,
-    selectedTileIds: selectedTileIds
+    selectedTileIds: selectedTileIds,
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {
@@ -224,14 +244,19 @@ export default function GamePage() {
 
     const activeId = event.active.id as string;
     const isBoardTileDrag = !!gameState.getBoardTile(activeId);
-    
-    if (isBoardTileDrag && selectedTileIds.includes(activeId) && selectedTileIds.length > 0 && gridRef.current) {
+
+    if (
+      isBoardTileDrag &&
+      selectedTileIds.includes(activeId) &&
+      selectedTileIds.length > 0 &&
+      gridRef.current
+    ) {
       const firstCell = gridRef.current.querySelector('#cell-0');
       if (firstCell) {
         const cellRect = firstCell.getBoundingClientRect();
         const initialSelectedBoardTiles = selectedTileIds
-          .map(id => gameState.getBoardTile(id))
-          .filter(tile => tile !== undefined) as BoardTile[];
+          .map((id) => gameState.getBoardTile(id))
+          .filter((tile) => tile !== undefined) as BoardTile[];
 
         // Calculate cursor offset from the active tile
         const activeTile = gameState.getBoardTile(activeId);
@@ -242,7 +267,7 @@ export default function GamePage() {
             const pointerEvent = event.activatorEvent as PointerEvent;
             const cursorOffset = {
               x: pointerEvent.clientX - tileRect.left,
-              y: pointerEvent.clientY - tileRect.top
+              y: pointerEvent.clientY - tileRect.top,
             };
 
             setActiveDragData({
@@ -250,7 +275,7 @@ export default function GamePage() {
               cellWidth: cellRect.width,
               cellHeight: cellRect.height,
               initialSelectedTiles: initialSelectedBoardTiles,
-              cursorOffset
+              cursorOffset,
             });
           }
         }
@@ -262,13 +287,13 @@ export default function GamePage() {
         cellWidth: 50, // Default/approximate size for hand tiles
         cellHeight: 50,
         initialSelectedTiles: [], // No group for hand tiles in this context
-        cursorOffset: { x: 25, y: 25 } // Center by default
+        cursorOffset: { x: 25, y: 25 }, // Center by default
       });
     }
-    
+
     // Only clear selection if dragging a non-selected tile
     const isDraggingSelectedTile = selectedTileIds.includes(activeId);
-    
+
     if (!isDraggingSelectedTile) {
       setSelectedTileIds([]);
     }
@@ -295,7 +320,7 @@ export default function GamePage() {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    selectedTileIds.forEach(id => {
+    selectedTileIds.forEach((id) => {
       const tile = gameState.getBoardTile(id);
       if (!tile) return;
       const cellEl = document.getElementById(tile.position);
@@ -331,16 +356,17 @@ export default function GamePage() {
             <h1 className="text-4xl font-bold text-amber-800 mb-2">Congratulations!</h1>
             <p className="text-xl text-gray-600">You've completed the puzzle!</p>
           </div>
-          
+
           <div className="bg-amber-50 rounded-lg p-6 mb-8">
             <div className="text-3xl font-bold text-amber-700 mb-2">
               Score: {finalScore?.toLocaleString()}
             </div>
             <div className="text-sm text-gray-600">
-              Time: {Math.floor((Date.now() - gameStartTime) / 60000)} minutes {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)} seconds
+              Time: {Math.floor((Date.now() - gameStartTime) / 60000)} minutes{' '}
+              {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)} seconds
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <button
               onClick={() => {
@@ -368,7 +394,7 @@ export default function GamePage() {
   }
 
   return (
-    <main 
+    <main
       className="min-h-screen p-4 flex flex-col items-center bg-amber-50 relative"
       onMouseMove={marqueeSelection.dragMarquee}
       onMouseUp={marqueeSelection.endMarquee}
@@ -384,9 +410,13 @@ export default function GamePage() {
             {saveStatus === 'saved' && '✓ Saved'}
             {saveStatus === 'error' && '⚠️ Save error'}
           </div>
-          <button 
+          <button
             onClick={() => {
-              if (window.confirm('Are you sure you want to reset the game? This will clear all tiles and start fresh.')) {
+              if (
+                window.confirm(
+                  'Are you sure you want to reset the game? This will clear all tiles and start fresh.'
+                )
+              ) {
                 gameState.resetGame();
               }
             }}
@@ -394,7 +424,7 @@ export default function GamePage() {
           >
             Reset Game
           </button>
-          <button 
+          <button
             onClick={() => router.push('/')}
             className="px-3 py-1 text-sm text-black bg-amber-200 hover:bg-amber-300 rounded transition-colors"
           >
@@ -402,30 +432,30 @@ export default function GamePage() {
           </button>
         </div>
       </div>
-      
-      <DndContext 
+
+      <DndContext
         sensors={sensors}
         onDragStart={handleDndDragStart}
-        onDragEnd={handleDndDragEnd} 
+        onDragEnd={handleDndDragEnd}
         collisionDetection={closestCenter}
       >
-        <TilePalette 
+        <TilePalette
           playerHand={gameState.playerHand}
           remainingTiles={gameState.getRemainingTileCount()}
           onDrawTiles={gameState.drawTiles}
           onTradeInTile={gameState.handleTradeInTile}
         />
-        
-        <div 
+
+        <div
           className="w-full max-w-5xl mx-auto relative"
           onMouseDown={marqueeSelection.initiateMarquee}
         >
-          <div 
-            ref={gridRef} 
+          <div
+            ref={gridRef}
             className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
             style={{
               position: 'relative',
-              zIndex: 0
+              zIndex: 0,
             }}
           >
             {gridCellIds.map((cellId) => {
@@ -433,11 +463,15 @@ export default function GamePage() {
               return (
                 <GridCell key={cellId} id={cellId}>
                   {tile ? (
-                    <GridTile 
-                      id={tile.id} 
-                      content={tile.content} 
+                    <GridTile
+                      id={tile.id}
+                      content={tile.content}
                       isSelected={selectedTileIds.includes(tile.id)}
-                      isGhost={activeDragData !== null && selectedTileIds.includes(tile.id) && selectedTileIds.length > 0}
+                      isGhost={
+                        activeDragData !== null &&
+                        selectedTileIds.includes(tile.id) &&
+                        selectedTileIds.length > 0
+                      }
                     />
                   ) : null}
                 </GridCell>
@@ -474,107 +508,126 @@ export default function GamePage() {
             />
           )}
         </div>
-        
+
         <TrashArea />
         <DragOverlay dropAnimation={null}>
-          {activeDragData ? (() => {
-            const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } = activeDragData;
-            const activeId = active.id as string;
-            
-            const isMultiSelectDrag = initialSelectedTiles.length > 0 && initialSelectedTiles.some(t => t.id === activeId);
+          {activeDragData
+            ? (() => {
+                const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } =
+                  activeDragData;
+                const activeId = active.id as string;
 
-            if (isMultiSelectDrag) {
-              const activeDraggedTileInitial = initialSelectedTiles.find(t => t.id === activeId);
-              if (!activeDraggedTileInitial) return null; // Should be a BoardTile
+                const isMultiSelectDrag =
+                  initialSelectedTiles.length > 0 &&
+                  initialSelectedTiles.some((t) => t.id === activeId);
 
-              // Get position of the active dragged tile
-              const [activeInitialRow, activeInitialCol] = getCellIndices(activeDraggedTileInitial.position);
-              
-              // Calculate the bounding box of selected tiles relative to active tile
-              let minRelRow = 0, maxRelRow = 0, minRelCol = 0, maxRelCol = 0;
+                if (isMultiSelectDrag) {
+                  const activeDraggedTileInitial = initialSelectedTiles.find(
+                    (t) => t.id === activeId
+                  );
+                  if (!activeDraggedTileInitial) return null; // Should be a BoardTile
 
-              initialSelectedTiles.forEach(tile => { // These are BoardTile[]
-                const [row, col] = getCellIndices(tile.position);
-                const relRow = row - activeInitialRow;
-                const relCol = col - activeInitialCol;
-                
-                minRelRow = Math.min(minRelRow, relRow);
-                maxRelRow = Math.max(maxRelRow, relRow);
-                minRelCol = Math.min(minRelCol, relCol);
-                maxRelCol = Math.max(maxRelCol, relCol);
-              });
+                  // Get position of the active dragged tile
+                  const [activeInitialRow, activeInitialCol] = getCellIndices(
+                    activeDraggedTileInitial.position
+                  );
 
-              const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
-              const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+                  // Calculate the bounding box of selected tiles relative to active tile
+                  let minRelRow = 0,
+                    maxRelRow = 0,
+                    minRelCol = 0,
+                    maxRelCol = 0;
 
-              // Adjust for cursor offset
-              const offsetX = -cursorOffset.x + minRelCol * cellWidth;
-              const offsetY = -cursorOffset.y + minRelRow * cellHeight;
-
-              const containerStyle: React.CSSProperties = {
-                width: containerWidth,
-                height: containerHeight,
-                position: 'relative',
-                transform: `translate(${offsetX}px, ${offsetY}px)`,
-                pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
-              };
-
-              return (
-                <div style={containerStyle}>
-                  {initialSelectedTiles.map(tile => { // These are BoardTile[]
+                  initialSelectedTiles.forEach((tile) => {
+                    // These are BoardTile[]
                     const [row, col] = getCellIndices(tile.position);
-                    // Position relative to the active tile
                     const relRow = row - activeInitialRow;
                     const relCol = col - activeInitialCol;
-                    
-                    const tileStyle: React.CSSProperties = {
-                      position: 'absolute',
-                      left: (relCol - minRelCol) * cellWidth,
-                      top: (relRow - minRelRow) * cellHeight,
-                      width: cellWidth,
-                      height: cellHeight,
-                      boxSizing: 'border-box',
-                      margin: 0,
-                      padding: 0,
-                    };
 
-                    return (
-                      <GridTile
-                        key={tile.id}
-                        id={tile.id}
-                        content={tile.content} // BoardTile has content
-                        isSelected={true}
-                        style={tileStyle}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            } else {
-              const tileData = gameState.getBoardTile(activeId) || gameState.getHandTile(activeId);
-              if (!tileData) return null;
+                    minRelRow = Math.min(minRelRow, relRow);
+                    maxRelRow = Math.max(maxRelRow, relRow);
+                    minRelCol = Math.min(minRelCol, relCol);
+                    maxRelCol = Math.max(maxRelCol, relCol);
+                  });
 
-              const content = (tileData as BoardTile).content !== undefined 
-                                ? (tileData as BoardTile).content 
-                                : (tileData as PlayerTile).letter;
-              return (
-                <GridTile 
-                  id={activeId} 
-                  content={content}
-                  isSelected={true} 
-                  style={{ width: cellWidth, height: cellHeight }}
-                />
-              );
-            }
-          })() : null}
+                  const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
+                  const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+
+                  // Adjust for cursor offset
+                  const offsetX = -cursorOffset.x + minRelCol * cellWidth;
+                  const offsetY = -cursorOffset.y + minRelRow * cellHeight;
+
+                  const containerStyle: React.CSSProperties = {
+                    width: containerWidth,
+                    height: containerHeight,
+                    position: 'relative',
+                    transform: `translate(${offsetX}px, ${offsetY}px)`,
+                    pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
+                  };
+
+                  return (
+                    <div style={containerStyle}>
+                      {initialSelectedTiles.map((tile) => {
+                        // These are BoardTile[]
+                        const [row, col] = getCellIndices(tile.position);
+                        // Position relative to the active tile
+                        const relRow = row - activeInitialRow;
+                        const relCol = col - activeInitialCol;
+
+                        const tileStyle: React.CSSProperties = {
+                          position: 'absolute',
+                          left: (relCol - minRelCol) * cellWidth,
+                          top: (relRow - minRelRow) * cellHeight,
+                          width: cellWidth,
+                          height: cellHeight,
+                          boxSizing: 'border-box',
+                          margin: 0,
+                          padding: 0,
+                        };
+
+                        return (
+                          <GridTile
+                            key={tile.id}
+                            id={tile.id}
+                            content={tile.content} // BoardTile has content
+                            isSelected={true}
+                            style={tileStyle}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                } else {
+                  const tileData =
+                    gameState.getBoardTile(activeId) || gameState.getHandTile(activeId);
+                  if (!tileData) return null;
+
+                  const content =
+                    (tileData as BoardTile).content !== undefined
+                      ? (tileData as BoardTile).content
+                      : (tileData as PlayerTile).letter;
+                  return (
+                    <GridTile
+                      id={activeId}
+                      content={content}
+                      isSelected={true}
+                      style={{ width: cellWidth, height: cellHeight }}
+                    />
+                  );
+                }
+              })()
+            : null}
         </DragOverlay>
       </DndContext>
-      
+
       <div className="mt-4 text-xs text-gray-600">
-        {selectedTileIds.length > 0 && 
-          <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together. Press T to transpose.</p>
-        }
+        {selectedTileIds.length > 0 && (
+          <p>
+            Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together.
+            Press T to transpose.
+          </p>
+        )}
       </div>
     </main>
   );
-} 
+}

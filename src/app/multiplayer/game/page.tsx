@@ -2,16 +2,16 @@
 
 import React, { useRef, useState, useCallback, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  DndContext, 
-  closestCenter, 
-  DragStartEvent, 
+import {
+  DndContext,
+  closestCenter,
+  DragStartEvent,
   DragEndEvent as DndKitDragEndEvent,
   DragOverlay,
   Active,
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
 } from '@dnd-kit/core';
 import GridCell from '../../components/GridCell';
 import GridTile from '../../components/GridTile';
@@ -44,8 +44,8 @@ function MultiplayerGameContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roomPin = searchParams.get('pin');
-  
-  const { 
+
+  const {
     currentRoom,
     playerName,
     isConnected,
@@ -58,16 +58,21 @@ function MultiplayerGameContent() {
     onPeelCalled,
     onGameWon,
     onPlayerDumped,
-    onPlayerHandUpdate
+    onPlayerHandUpdate,
   } = useSocket();
-  
+
   const gridCellIds = generateGridCellIds();
   const gameState = useMultiplayerGameState();
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
-  const [selectionBox, setSelectionBox] = useState<null | { x: number; y: number; width: number; height: number }>(null);
+  const [selectionBox, setSelectionBox] = useState<null | {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>(null);
   const [gameStatus, setGameStatus] = useState<string>('');
   const [winner, setWinner] = useState<{ id: string; name: string } | null>(null);
   const [playerHandSizes, setPlayerHandSizes] = useState<Record<string, number>>({});
@@ -93,26 +98,26 @@ function MultiplayerGameContent() {
     // If we are not connected yet, or currentRoom is not yet loaded for the given roomPin,
     // don't set up listeners or try to redirect yet. The main render body will show a loading indicator.
     if (!isConnected || !currentRoom) {
-      return; 
+      return;
     }
-    
+
     // Ensure the currentRoom loaded matches the PIN from URL, otherwise redirect.
     // This handles cases where a user might land with a valid PIN for a room that no longer exists or has changed.
     if (currentRoom.pin !== roomPin) {
-        router.push('/');
-        return;
+      router.push('/');
+      return;
     }
 
     const unsubscribePeel = onPeelCalled((data) => {
       setGameStatus(`${data.callerName} called PEEL! Everyone gets a new tile.`);
       gameState.handlePeelEvent(data);
-      
+
       // Check if it's the last round
       if (data.isLastRound) {
         setIsLastRound(true);
         setGameStatus(`${data.callerName} called PEEL! LAST ROUND - Next player to finish wins!`);
       }
-      
+
       setTimeout(() => setGameStatus(''), 3000);
     });
 
@@ -127,29 +132,31 @@ function MultiplayerGameContent() {
     });
 
     const unsubscribeHandUpdate = onPlayerHandUpdate((data) => {
-      setPlayerHandSizes(prev => ({
+      setPlayerHandSizes((prev) => ({
         ...prev,
-        [data.playerName]: data.handSize
+        [data.playerName]: data.handSize,
       }));
     });
 
     // Subscribe to player board updates
-    const unsubscribeBoardUpdate = socket ? (() => {
-      const handler = (data: any) => {
-        setPlayerHandSizes(prev => ({
-          ...prev,
-          [data.playerName]: data.handSize
-        }));
-        setPlayerBoardSizes(prev => ({
-          ...prev,
-          [data.playerName]: data.boardSize
-        }));
-      };
-      socket.on('playerBoardUpdate', handler);
-      return () => socket.off('playerBoardUpdate', handler);
-    })() : undefined;
+    const unsubscribeBoardUpdate = socket
+      ? (() => {
+          const handler = (data: any) => {
+            setPlayerHandSizes((prev) => ({
+              ...prev,
+              [data.playerName]: data.handSize,
+            }));
+            setPlayerBoardSizes((prev) => ({
+              ...prev,
+              [data.playerName]: data.boardSize,
+            }));
+          };
+          socket.on('playerBoardUpdate', handler);
+          return () => socket.off('playerBoardUpdate', handler);
+        })()
+      : undefined;
 
-    return () => { 
+    return () => {
       unsubscribePeel();
       unsubscribeWon();
       unsubscribeDump();
@@ -159,16 +166,16 @@ function MultiplayerGameContent() {
       }
     };
   }, [
-    roomPin, 
+    roomPin,
     currentRoom, // Effect should re-run if currentRoom reference changes (e.g. new room loaded)
-    isConnected, 
-    onPeelCalled, 
-    onGameWon, 
+    isConnected,
+    onPeelCalled,
+    onGameWon,
     onPlayerDumped,
     onPlayerHandUpdate,
     gameState.handlePeelEvent, // Now stable due to useCallback
     gameState.handlePlayerDumpEvent, // Now stable due to useCallback
-    router 
+    router,
     // gameState object itself is removed from dependencies
   ]);
 
@@ -192,19 +199,21 @@ function MultiplayerGameContent() {
   // Automatically call peel when player runs out of tiles (but not on initial load)
   const [hasInitialTiles, setHasInitialTiles] = useState(false);
   const [isCallingPeel, setIsCallingPeel] = useState(false);
-  
+
   useEffect(() => {
     if (gameState.playerHand.length > 0) {
       setHasInitialTiles(true);
     }
   }, [gameState.playerHand.length]);
-  
+
   useEffect(() => {
-    if (gameState.playerHand.length === 0 && 
-        currentRoom?.gameState === 'playing' && 
-        hasInitialTiles && 
-        !isCallingPeel &&
-        gameState.tiles.length > 0) {
+    if (
+      gameState.playerHand.length === 0 &&
+      currentRoom?.gameState === 'playing' &&
+      hasInitialTiles &&
+      !isCallingPeel &&
+      gameState.tiles.length > 0
+    ) {
       // Add a small delay to ensure the game state is fully updated
       const timer = setTimeout(async () => {
         // Double-check that we still have no tiles in hand
@@ -223,10 +232,17 @@ function MultiplayerGameContent() {
           setIsCallingPeel(false);
         }
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
-  }, [gameState.playerHand.length, gameState.tiles.length, currentRoom?.gameState, callPeel, hasInitialTiles, isCallingPeel]);
+  }, [
+    gameState.playerHand.length,
+    gameState.tiles.length,
+    currentRoom?.gameState,
+    callPeel,
+    hasInitialTiles,
+    isCallingPeel,
+  ]);
 
   const handleDumpTile = async (tileId: string) => {
     const result = await dumpTile(tileId);
@@ -247,30 +263,34 @@ function MultiplayerGameContent() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 't' && selectedTileIds.length > 0) {
         const selectedBoardTiles = selectedTileIds
-          .map(id => gameState.getBoardTile(id))
-          .filter(tile => tile !== undefined) as BoardTile[];
-        
+          .map((id) => gameState.getBoardTile(id))
+          .filter((tile) => tile !== undefined) as BoardTile[];
+
         if (selectedBoardTiles.length === 0) return;
-        
+
         const newPositions = transposeTiles(selectedBoardTiles);
         if (!newPositions) return; // Can't transpose (would go out of bounds)
-        
+
         // Check if any of the new positions are occupied by non-selected tiles
         let canTranspose = true;
-        const selectedPositions = new Set(selectedBoardTiles.map(t => t.position));
-        
+        const selectedPositions = new Set(selectedBoardTiles.map((t) => t.position));
+
         newPositions.forEach((newPos) => {
           const occupyingTile = gameState.getTileAtPosition(newPos);
-          if (occupyingTile && !selectedTileIds.includes(occupyingTile.id) && !selectedPositions.has(newPos)) {
+          if (
+            occupyingTile &&
+            !selectedTileIds.includes(occupyingTile.id) &&
+            !selectedPositions.has(newPos)
+          ) {
             canTranspose = false;
           }
         });
-        
+
         if (!canTranspose) return;
-        
+
         // Apply the transpose
-        gameState.updateTilePositions(prevTiles => {
-          return prevTiles.map(tile => {
+        gameState.updateTilePositions((prevTiles) => {
+          return prevTiles.map((tile) => {
             const newPosition = newPositions.get(tile.id);
             if (newPosition) {
               return { ...tile, position: newPosition };
@@ -280,7 +300,7 @@ function MultiplayerGameContent() {
         });
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [selectedTileIds, gameState]);
@@ -291,7 +311,7 @@ function MultiplayerGameContent() {
     onSelectTiles: handleSelectTiles,
     isEnabled: !isDndDragging,
   });
-  
+
   const dndHandlers = useDragDrop({
     getHandTile: gameState.getHandTile,
     getBoardTile: gameState.getBoardTile,
@@ -305,7 +325,7 @@ function MultiplayerGameContent() {
     addTileToHand: gameState.addTileToHand,
     selectedTileIds: selectedTileIds,
     onDumpTile: handleDumpTile,
-    onTileLocationUpdate: updateTileLocations
+    onTileLocationUpdate: updateTileLocations,
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {
@@ -314,14 +334,19 @@ function MultiplayerGameContent() {
 
     const activeId = event.active.id as string;
     const isBoardTileDrag = !!gameState.getBoardTile(activeId);
-    
-    if (isBoardTileDrag && selectedTileIds.includes(activeId) && selectedTileIds.length > 0 && gridRef.current) {
+
+    if (
+      isBoardTileDrag &&
+      selectedTileIds.includes(activeId) &&
+      selectedTileIds.length > 0 &&
+      gridRef.current
+    ) {
       const firstCell = gridRef.current.querySelector('#cell-0');
       if (firstCell) {
         const cellRect = firstCell.getBoundingClientRect();
         const initialSelectedBoardTiles = selectedTileIds
-          .map(id => gameState.getBoardTile(id))
-          .filter(tile => tile !== undefined) as BoardTile[];
+          .map((id) => gameState.getBoardTile(id))
+          .filter((tile) => tile !== undefined) as BoardTile[];
 
         // Calculate cursor offset from the active tile
         const activeTile = gameState.getBoardTile(activeId);
@@ -332,7 +357,7 @@ function MultiplayerGameContent() {
             const pointerEvent = event.activatorEvent as PointerEvent;
             const cursorOffset = {
               x: pointerEvent.clientX - tileRect.left,
-              y: pointerEvent.clientY - tileRect.top
+              y: pointerEvent.clientY - tileRect.top,
             };
 
             setActiveDragData({
@@ -340,7 +365,7 @@ function MultiplayerGameContent() {
               cellWidth: cellRect.width,
               cellHeight: cellRect.height,
               initialSelectedTiles: initialSelectedBoardTiles,
-              cursorOffset
+              cursorOffset,
             });
           }
         }
@@ -352,13 +377,13 @@ function MultiplayerGameContent() {
         cellWidth: 50, // Default/approximate size for hand tiles
         cellHeight: 50,
         initialSelectedTiles: [], // No group for hand tiles in this context
-        cursorOffset: { x: 25, y: 25 } // Center by default
+        cursorOffset: { x: 25, y: 25 }, // Center by default
       });
     }
-    
+
     // Only clear selection if dragging a non-selected tile
     const isDraggingSelectedTile = selectedTileIds.includes(activeId);
-    
+
     if (!isDraggingSelectedTile) {
       setSelectedTileIds([]);
     }
@@ -386,7 +411,7 @@ function MultiplayerGameContent() {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    selectedTileIds.forEach(id => {
+    selectedTileIds.forEach((id) => {
       const tile = gameState.getBoardTile(id);
       if (!tile) return;
       const cellEl = document.getElementById(tile.position);
@@ -423,8 +448,8 @@ function MultiplayerGameContent() {
     );
   }
 
-  const currentPlayer = currentRoom.players.find(p => p.name === playerName);
-  const otherPlayers = currentRoom.players.filter(p => p.name !== playerName);
+  const currentPlayer = currentRoom.players.find((p) => p.name === playerName);
+  const otherPlayers = currentRoom.players.filter((p) => p.name !== playerName);
 
   if (winner) {
     return (
@@ -434,8 +459,8 @@ function MultiplayerGameContent() {
             {winner.name === playerName ? '🎉 You Won! 🎉' : `${winner.name} Won!`}
           </h1>
           <p className="text-xl text-gray-600 mb-8">
-            {winner.name === playerName 
-              ? 'Congratulations on your victory!' 
+            {winner.name === playerName
+              ? 'Congratulations on your victory!'
               : 'Better luck next time!'}
           </p>
           <button
@@ -450,7 +475,7 @@ function MultiplayerGameContent() {
   }
 
   return (
-    <main 
+    <main
       className="min-h-screen p-4 flex flex-col items-center bg-amber-50 relative"
       onMouseMove={marqueeSelection.dragMarquee}
       onMouseUp={marqueeSelection.endMarquee}
@@ -461,15 +486,11 @@ function MultiplayerGameContent() {
           <div className="text-sm text-gray-600">
             PIN: <span className="font-mono font-bold">{roomPin}</span>
           </div>
-          <div className="text-sm text-gray-600">
-            {gameState.remainingTiles} tiles left in bag
-          </div>
+          <div className="text-sm text-gray-600">{gameState.remainingTiles} tiles left in bag</div>
           {isLastRound && (
-            <div className="text-sm font-bold text-red-600 animate-pulse">
-              🏁 LAST ROUND
-            </div>
+            <div className="text-sm font-bold text-red-600 animate-pulse">🏁 LAST ROUND</div>
           )}
-          <button 
+          <button
             onClick={() => {
               if (window.confirm('Are you sure you want to leave the game?')) {
                 router.push('/');
@@ -488,11 +509,11 @@ function MultiplayerGameContent() {
           {gameStatus}
         </div>
       )}
-      
-      <DndContext 
+
+      <DndContext
         sensors={sensors}
         onDragStart={handleDndDragStart}
-        onDragEnd={handleDndDragEnd} 
+        onDragEnd={handleDndDragEnd}
         collisionDetection={closestCenter}
       >
         <div className="flex gap-4 w-full max-w-7xl">
@@ -501,31 +522,30 @@ function MultiplayerGameContent() {
             {/* Player Hand */}
             <div className="mb-4 p-3 border border-amber-800 rounded-md bg-amber-50">
               <div className="flex justify-between items-center mb-2">
-                <h2 className="font-semibold text-black text-sm">Your Tiles ({gameState.playerHand.length})</h2>
+                <h2 className="font-semibold text-black text-sm">
+                  Your Tiles ({gameState.playerHand.length})
+                </h2>
               </div>
               <div className="flex flex-wrap gap-1">
                 {gameState.playerHand.map((tile) => (
                   <div key={tile.id} className="w-8 h-8">
-                    <GridTile
-                      id={tile.id}
-                      content={tile.letter}
-                    />
+                    <GridTile id={tile.id} content={tile.letter} />
                   </div>
                 ))}
               </div>
             </div>
-            
+
             {/* Game Board */}
-            <div 
+            <div
               className="w-full max-w-5xl mx-auto relative"
               onMouseDown={marqueeSelection.initiateMarquee}
             >
-              <div 
-                ref={gridRef} 
+              <div
+                ref={gridRef}
                 className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
                 style={{
                   position: 'relative',
-                  zIndex: 0
+                  zIndex: 0,
                 }}
               >
                 {gridCellIds.map((cellId) => {
@@ -533,11 +553,15 @@ function MultiplayerGameContent() {
                   return (
                     <GridCell key={cellId} id={cellId}>
                       {tile ? (
-                        <GridTile 
-                          id={tile.id} 
-                          content={tile.content} 
+                        <GridTile
+                          id={tile.id}
+                          content={tile.content}
                           isSelected={selectedTileIds.includes(tile.id)}
-                          isGhost={activeDragData !== null && selectedTileIds.includes(tile.id) && selectedTileIds.length > 0}
+                          isGhost={
+                            activeDragData !== null &&
+                            selectedTileIds.includes(tile.id) &&
+                            selectedTileIds.length > 0
+                          }
                         />
                       ) : null}
                     </GridCell>
@@ -581,19 +605,20 @@ function MultiplayerGameContent() {
             <h3 className="font-bold text-gray-800 mb-3">Other Players</h3>
             <div className="space-y-2">
               {otherPlayers.map((player) => {
-                const handSize = player.handSize ?? playerHandSizes[player.name] ?? player.tiles.length;
+                const handSize =
+                  player.handSize ?? playerHandSizes[player.name] ?? player.tiles.length;
                 const boardSize = player.boardSize ?? playerBoardSizes[player.name] ?? 0;
                 return (
                   <div key={player.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-gray-700">{player.name}</span>
                       <div className="text-right">
-                        <div className={`text-sm ${handSize === 0 ? 'text-green-600 font-bold' : 'text-gray-500'}`}>
+                        <div
+                          className={`text-sm ${handSize === 0 ? 'text-green-600 font-bold' : 'text-gray-500'}`}
+                        >
                           Hand: {handSize}
                         </div>
-                        <div className="text-xs text-gray-400">
-                          Board: {boardSize}
-                        </div>
+                        <div className="text-xs text-gray-400">Board: {boardSize}</div>
                         {player.isHost && (
                           <div className="text-xs text-amber-600 font-medium">HOST</div>
                         )}
@@ -603,7 +628,7 @@ function MultiplayerGameContent() {
                 );
               })}
             </div>
-            
+
             {/* Game Info */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-600 space-y-1">
@@ -619,106 +644,125 @@ function MultiplayerGameContent() {
             </div>
           </div>
         </div>
-        
+
         <TrashArea />
         <DragOverlay dropAnimation={null}>
-          {activeDragData ? (() => {
-            const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } = activeDragData;
-            const activeId = active.id as string;
-            
-            const isMultiSelectDrag = initialSelectedTiles.length > 0 && initialSelectedTiles.some(t => t.id === activeId);
+          {activeDragData
+            ? (() => {
+                const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } =
+                  activeDragData;
+                const activeId = active.id as string;
 
-            if (isMultiSelectDrag) {
-              const activeDraggedTileInitial = initialSelectedTiles.find(t => t.id === activeId);
-              if (!activeDraggedTileInitial) return null; // Should be a BoardTile
+                const isMultiSelectDrag =
+                  initialSelectedTiles.length > 0 &&
+                  initialSelectedTiles.some((t) => t.id === activeId);
 
-              // Get position of the active dragged tile
-              const [activeInitialRow, activeInitialCol] = getCellIndices(activeDraggedTileInitial.position);
-              
-              // Calculate the bounding box of selected tiles relative to active tile
-              let minRelRow = 0, maxRelRow = 0, minRelCol = 0, maxRelCol = 0;
+                if (isMultiSelectDrag) {
+                  const activeDraggedTileInitial = initialSelectedTiles.find(
+                    (t) => t.id === activeId
+                  );
+                  if (!activeDraggedTileInitial) return null; // Should be a BoardTile
 
-              initialSelectedTiles.forEach(tile => { // These are BoardTile[]
-                const [row, col] = getCellIndices(tile.position);
-                const relRow = row - activeInitialRow;
-                const relCol = col - activeInitialCol;
-                
-                minRelRow = Math.min(minRelRow, relRow);
-                maxRelRow = Math.max(maxRelRow, relRow);
-                minRelCol = Math.min(minRelCol, relCol);
-                maxRelCol = Math.max(maxRelCol, relCol);
-              });
+                  // Get position of the active dragged tile
+                  const [activeInitialRow, activeInitialCol] = getCellIndices(
+                    activeDraggedTileInitial.position
+                  );
 
-              const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
-              const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+                  // Calculate the bounding box of selected tiles relative to active tile
+                  let minRelRow = 0,
+                    maxRelRow = 0,
+                    minRelCol = 0,
+                    maxRelCol = 0;
 
-              // Adjust for cursor offset
-              const offsetX = -cursorOffset.x + minRelCol * cellWidth;
-              const offsetY = -cursorOffset.y + minRelRow * cellHeight;
-
-              const containerStyle: React.CSSProperties = {
-                width: containerWidth,
-                height: containerHeight,
-                position: 'relative',
-                transform: `translate(${offsetX}px, ${offsetY}px)`,
-                pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
-              };
-
-              return (
-                <div style={containerStyle}>
-                  {initialSelectedTiles.map(tile => { // These are BoardTile[]
+                  initialSelectedTiles.forEach((tile) => {
+                    // These are BoardTile[]
                     const [row, col] = getCellIndices(tile.position);
-                    // Position relative to the active tile
                     const relRow = row - activeInitialRow;
                     const relCol = col - activeInitialCol;
-                    
-                    const tileStyle: React.CSSProperties = {
-                      position: 'absolute',
-                      left: (relCol - minRelCol) * cellWidth,
-                      top: (relRow - minRelRow) * cellHeight,
-                      width: cellWidth,
-                      height: cellHeight,
-                      boxSizing: 'border-box',
-                      margin: 0,
-                      padding: 0,
-                    };
 
-                    return (
-                      <GridTile
-                        key={tile.id}
-                        id={tile.id}
-                        content={tile.content} // BoardTile has content
-                        isSelected={true}
-                        style={tileStyle}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            } else {
-              const tileData = gameState.getBoardTile(activeId) || gameState.getHandTile(activeId);
-              if (!tileData) return null;
+                    minRelRow = Math.min(minRelRow, relRow);
+                    maxRelRow = Math.max(maxRelRow, relRow);
+                    minRelCol = Math.min(minRelCol, relCol);
+                    maxRelCol = Math.max(maxRelCol, relCol);
+                  });
 
-              const content = (tileData as BoardTile).content !== undefined 
-                                ? (tileData as BoardTile).content 
-                                : (tileData as PlayerTile).letter;
-              return (
-                <GridTile 
-                  id={activeId} 
-                  content={content}
-                  isSelected={true} 
-                  style={{ width: cellWidth, height: cellHeight }}
-                />
-              );
-            }
-          })() : null}
+                  const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
+                  const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+
+                  // Adjust for cursor offset
+                  const offsetX = -cursorOffset.x + minRelCol * cellWidth;
+                  const offsetY = -cursorOffset.y + minRelRow * cellHeight;
+
+                  const containerStyle: React.CSSProperties = {
+                    width: containerWidth,
+                    height: containerHeight,
+                    position: 'relative',
+                    transform: `translate(${offsetX}px, ${offsetY}px)`,
+                    pointerEvents: 'none', // Ensure overlay doesn't interfere with the drag
+                  };
+
+                  return (
+                    <div style={containerStyle}>
+                      {initialSelectedTiles.map((tile) => {
+                        // These are BoardTile[]
+                        const [row, col] = getCellIndices(tile.position);
+                        // Position relative to the active tile
+                        const relRow = row - activeInitialRow;
+                        const relCol = col - activeInitialCol;
+
+                        const tileStyle: React.CSSProperties = {
+                          position: 'absolute',
+                          left: (relCol - minRelCol) * cellWidth,
+                          top: (relRow - minRelRow) * cellHeight,
+                          width: cellWidth,
+                          height: cellHeight,
+                          boxSizing: 'border-box',
+                          margin: 0,
+                          padding: 0,
+                        };
+
+                        return (
+                          <GridTile
+                            key={tile.id}
+                            id={tile.id}
+                            content={tile.content} // BoardTile has content
+                            isSelected={true}
+                            style={tileStyle}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                } else {
+                  const tileData =
+                    gameState.getBoardTile(activeId) || gameState.getHandTile(activeId);
+                  if (!tileData) return null;
+
+                  const content =
+                    (tileData as BoardTile).content !== undefined
+                      ? (tileData as BoardTile).content
+                      : (tileData as PlayerTile).letter;
+                  return (
+                    <GridTile
+                      id={activeId}
+                      content={content}
+                      isSelected={true}
+                      style={{ width: cellWidth, height: cellHeight }}
+                    />
+                  );
+                }
+              })()
+            : null}
         </DragOverlay>
       </DndContext>
-      
+
       <div className="mt-4 text-xs text-gray-600 text-center space-y-1">
-        {selectedTileIds.length > 0 && 
-          <p>Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together. Press T to transpose.</p>
-        }
+        {selectedTileIds.length > 0 && (
+          <p>
+            Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together.
+            Press T to transpose.
+          </p>
+        )}
         <p>Drag tiles from your hand to the trash area to dump them for 3 new ones.</p>
       </div>
     </main>
@@ -727,15 +771,17 @@ function MultiplayerGameContent() {
 
 export default function MultiplayerGamePage() {
   return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">Loading game...</p>
-        </div>
-      </main>
-    }>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin text-4xl mb-4">⏳</div>
+            <p className="text-gray-600">Loading game...</p>
+          </div>
+        </main>
+      }
+    >
       <MultiplayerGameContent />
     </Suspense>
   );
-} 
+}

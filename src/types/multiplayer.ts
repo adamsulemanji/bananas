@@ -71,4 +71,4 @@ export interface PlayerHandUpdateData {
   playerId: string;
   playerName: string;
   handSize: number;
-} 
+}

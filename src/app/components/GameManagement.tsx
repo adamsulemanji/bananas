@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  getRecentSessions, 
-  deleteGameSession, 
+import {
+  getRecentSessions,
+  deleteGameSession,
   clearAllSessions,
   exportGameState,
   importGameState,
-  GameSession
+  GameSession,
 } from '@/utils/gameSession';
 
 export default function GameManagement() {
@@ -60,7 +60,7 @@ export default function GameManagement() {
   return (
     <div className="w-full max-w-2xl mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-xl font-bold mb-4">Game Management</h2>
-      
+
       <div className="space-y-4">
         <div className="flex gap-4">
           <button
@@ -69,17 +69,12 @@ export default function GameManagement() {
           >
             Show Saved Games
           </button>
-          
+
           <label className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors cursor-pointer">
             Import Game
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="hidden"
-            />
+            <input type="file" accept=".json" onChange={handleImport} className="hidden" />
           </label>
-          
+
           <button
             onClick={handleClearAll}
             className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
@@ -87,13 +82,11 @@ export default function GameManagement() {
             Clear All Data
           </button>
         </div>
-        
+
         {importStatus && (
-          <div className="p-3 bg-blue-100 text-blue-800 rounded">
-            {importStatus}
-          </div>
+          <div className="p-3 bg-blue-100 text-blue-800 rounded">{importStatus}</div>
         )}
-        
+
         {showSessions && (
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-3">Recent Games</h3>
@@ -117,7 +110,7 @@ export default function GameManagement() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => window.location.href = `/game/${session.gameId}`}
+                        onClick={() => (window.location.href = `/game/${session.gameId}`)}
                         className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded"
                       >
                         Resume
@@ -144,4 +137,4 @@ export default function GameManagement() {
       </div>
     </div>
   );
-} 
+}

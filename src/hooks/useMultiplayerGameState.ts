@@ -10,58 +10,53 @@ export function useMultiplayerGameState() {
   const [playerHand, setPlayerHand] = useState<PlayerTile[]>([]);
   const [remainingTiles, setRemainingTiles] = useState<number>(0);
   const [gameInitialized, setGameInitialized] = useState(false);
-  
+
   // Debug wrapper for setGameInitialized
   const setGameInitializedWithLog = (value: boolean) => {
     setGameInitialized(value);
   };
-  
+
   // Debug gameInitialized changes
-  useEffect(() => {
-  }, [gameInitialized]);
-  
+  useEffect(() => {}, [gameInitialized]);
+
   // Debug playerHand changes
-  useEffect(() => {
-  }, [playerHand]);
-  
+  useEffect(() => {}, [playerHand]);
+
   // Use a ref to ensure unique IDs across all tiles
   const tileCounterRef = useRef(1);
-  
+
   // Use a ref to track initialization state to avoid stale closures
   const gameInitializedRef = useRef(false);
-  
+
   // Keep ref in sync with state
   useEffect(() => {
     gameInitializedRef.current = gameInitialized;
   }, [gameInitialized]);
-  
+
   const { currentRoom, playerName, gameStartData, onGameStart, onPeelCalled } = useSocket();
-  
+
   // Debug playerName changes
-  useEffect(() => {
-  }, [playerName]);
-  
+  useEffect(() => {}, [playerName]);
+
   // Debug gameStartData changes
-  useEffect(() => {
-  }, [gameStartData]);
-  
+  useEffect(() => {}, [gameStartData]);
+
   // Debug hook lifecycle
   useEffect(() => {
-    return () => {
-    };
+    return () => {};
   }, []);
-  
+
   // Listen directly to gameStart events
   useEffect(() => {
     if (!playerName) return;
-    
+
     const unsubscribe = onGameStart((data: GameStartData) => {
       // Use a ref to check if already initialized to avoid stale closure
       if (gameInitializedRef.current) {
         return;
       }
-      
-      const currentPlayer = data.players.find(p => p.name === playerName);
+
+      const currentPlayer = data.players.find((p) => p.name === playerName);
       if (currentPlayer) {
         // On game start, all tiles should be in hand (board is empty)
         setPlayerHand(currentPlayer.tiles);
@@ -69,12 +64,12 @@ export function useMultiplayerGameState() {
         setGameInitializedWithLog(true);
       }
     });
-    
+
     return () => {
       unsubscribe();
     };
   }, [playerName, onGameStart]); // Removed gameInitialized from deps to avoid re-subscription
-  
+
   // Function to get next unique tile ID
   const getNextTileId = () => {
     const id = `tile-${tileCounterRef.current}`;
@@ -87,18 +82,18 @@ export function useMultiplayerGameState() {
     if (!gameStartData) {
       return;
     }
-    
+
     if (!playerName) {
       return;
     }
-    
+
     if (gameInitialized) {
       return;
     }
-    
+
     // Find current player's tiles
-    const currentPlayer = gameStartData.players.find(p => p.name === playerName);
-    
+    const currentPlayer = gameStartData.players.find((p) => p.name === playerName);
+
     if (currentPlayer) {
       setPlayerHand(currentPlayer.tiles);
       setRemainingTiles(gameStartData.remainingTiles);
@@ -110,7 +105,7 @@ export function useMultiplayerGameState() {
   // Initialize from current room if game already started (but only if not already initialized)
   useEffect(() => {
     if (currentRoom && currentRoom.gameState === 'playing' && !gameInitialized && playerName) {
-      const currentPlayer = currentRoom.players.find(p => p.name === playerName);
+      const currentPlayer = currentRoom.players.find((p) => p.name === playerName);
       if (currentPlayer && currentPlayer.tiles && currentPlayer.tiles.length > 0) {
         setPlayerHand(currentPlayer.tiles);
         setRemainingTiles(currentRoom.letterBag ? currentRoom.letterBag.length : 0);
@@ -120,26 +115,28 @@ export function useMultiplayerGameState() {
   }, [currentRoom, playerName, gameInitialized]);
 
   // Handle peel event - everyone gets a new tile
-  const handlePeelEvent = useCallback((data: PeelData) => {
-    const currentPlayer = data.players.find(p => p.name === playerName);
-    if (currentPlayer) {
-      
-      setPlayerHand(prevHand => {
-        const existingIds = new Set(prevHand.map(t => t.id));
-        const newTiles = currentPlayer.tiles.filter(t => !existingIds.has(t.id));
-        
-        return [...prevHand, ...newTiles];
-      });
-      
-      setRemainingTiles(data.remainingTiles);
-    } else {
-    }
-  }, [playerName]);
+  const handlePeelEvent = useCallback(
+    (data: PeelData) => {
+      const currentPlayer = data.players.find((p) => p.name === playerName);
+      if (currentPlayer) {
+        setPlayerHand((prevHand) => {
+          const existingIds = new Set(prevHand.map((t) => t.id));
+          const newTiles = currentPlayer.tiles.filter((t) => !existingIds.has(t.id));
+
+          return [...prevHand, ...newTiles];
+        });
+
+        setRemainingTiles(data.remainingTiles);
+      } else {
+      }
+    },
+    [playerName]
+  );
 
   // Handle dump result - replace tile with new ones
   const handleDumpResult = useCallback((oldTileId: string, newTiles: PlayerTile[]) => {
-    setPlayerHand(prevHand => {
-      const filtered = prevHand.filter(tile => tile.id !== oldTileId);
+    setPlayerHand((prevHand) => {
+      const filtered = prevHand.filter((tile) => tile.id !== oldTileId);
       return [...filtered, ...newTiles];
     });
   }, []);
@@ -152,7 +149,7 @@ export function useMultiplayerGameState() {
   // Add a tile from the board back to the player's hand
   const addTileToHand = useCallback((letter: string) => {
     const tileId = getNextTileId();
-    setPlayerHand(prevHand => [...prevHand, { id: tileId, letter }]);
+    setPlayerHand((prevHand) => [...prevHand, { id: tileId, letter }]);
   }, []);
 
   // Return a tile to the bag (not used in multiplayer)
@@ -166,29 +163,33 @@ export function useMultiplayerGameState() {
   }, []);
 
   // Functions related to the board
-  const getHandTile = useCallback((id: string) => playerHand.find(tile => tile.id === id), [playerHand]);
-  const getBoardTile = useCallback((id: string) => tiles.find(tile => tile.id === id), [tiles]);
-  const getTileAtPosition = useCallback((cellId: string) => tiles.find(tile => tile.position === cellId), [tiles]);
-  
+  const getHandTile = useCallback(
+    (id: string) => playerHand.find((tile) => tile.id === id),
+    [playerHand]
+  );
+  const getBoardTile = useCallback((id: string) => tiles.find((tile) => tile.id === id), [tiles]);
+  const getTileAtPosition = useCallback(
+    (cellId: string) => tiles.find((tile) => tile.position === cellId),
+    [tiles]
+  );
+
   // Remove a tile from hand
   const removeTileFromHand = useCallback((id: string) => {
-    setPlayerHand(prevHand => prevHand.filter(tile => tile.id !== id));
+    setPlayerHand((prevHand) => prevHand.filter((tile) => tile.id !== id));
   }, []);
-  
+
   // Remove a tile from the board
   const removeTileFromBoard = useCallback((id: string) => {
-    setTiles(prevTiles => prevTiles.filter(tile => tile.id !== id));
+    setTiles((prevTiles) => prevTiles.filter((tile) => tile.id !== id));
   }, []);
-  
+
   // Add a tile to the board
   const addTileToBoard = useCallback((newTile: BoardTile) => {
-    setTiles(prevTiles => [...prevTiles, newTile]);
+    setTiles((prevTiles) => [...prevTiles, newTile]);
   }, []);
-  
+
   // Update tile positions on the board
-  const updateTilePositions = useCallback((
-    updater: (prevTiles: BoardTile[]) => BoardTile[]
-  ) => {
+  const updateTilePositions = useCallback((updater: (prevTiles: BoardTile[]) => BoardTile[]) => {
     setTiles(updater);
   }, []);
 
@@ -210,4 +211,4 @@ export function useMultiplayerGameState() {
     updateTilePositions,
     addTileToHand,
   };
-} 
+}

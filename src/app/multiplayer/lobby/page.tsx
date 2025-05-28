@@ -8,18 +8,18 @@ function MultiplayerLobbyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roomPin = searchParams.get('pin');
-  
-  const { 
-    currentRoom, 
+
+  const {
+    currentRoom,
     playerName,
     isConnected,
-    toggleReady, 
+    toggleReady,
     startGame,
     onRoomUpdate,
     onGameStart,
-    onPlayerLeft
+    onPlayerLeft,
   } = useSocket();
-  
+
   const [error, setError] = useState<string>('');
   const [isStarting, setIsStarting] = useState(false);
 
@@ -30,9 +30,7 @@ function MultiplayerLobbyContent() {
     }
 
     // Listen for room updates
-    const unsubscribeRoom = onRoomUpdate((room) => {
-
-    });
+    const unsubscribeRoom = onRoomUpdate((room) => {});
 
     // Listen for game start
     const unsubscribeGameStart = onGameStart((data) => {
@@ -41,8 +39,7 @@ function MultiplayerLobbyContent() {
     });
 
     // Listen for players leaving
-    const unsubscribePlayerLeft = onPlayerLeft((data) => {
-    });
+    const unsubscribePlayerLeft = onPlayerLeft((data) => {});
 
     return () => {
       unsubscribeRoom();
@@ -54,7 +51,7 @@ function MultiplayerLobbyContent() {
   const handleStartGame = async () => {
     setIsStarting(true);
     setError('');
-    
+
     const result = await startGame();
     if (!result.success) {
       setError(result.error || 'Failed to start game');
@@ -89,9 +86,9 @@ function MultiplayerLobbyContent() {
     );
   }
 
-  const currentPlayer = currentRoom.players.find(p => p.name === playerName);
+  const currentPlayer = currentRoom.players.find((p) => p.name === playerName);
   const isHost = currentPlayer?.isHost || false;
-  const allPlayersReady = currentRoom.players.every(p => p.isReady || p.isHost);
+  const allPlayersReady = currentRoom.players.every((p) => p.isReady || p.isHost);
   const canStart = isHost && allPlayersReady && currentRoom.players.length >= 2;
 
   return (
@@ -111,39 +108,35 @@ function MultiplayerLobbyContent() {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             Players ({currentRoom.players.length}/8)
           </h2>
-          
+
           <div className="grid gap-3">
             {currentRoom.players.map((player) => (
               <div
                 key={player.id}
                 className={`flex items-center justify-between p-4 rounded-lg border-2 ${
-                  player.name === playerName 
-                    ? 'border-amber-400 bg-amber-50' 
+                  player.name === playerName
+                    ? 'border-amber-400 bg-amber-50'
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">
-                    {player.isHost ? '👑' : '🎮'}
-                  </span>
+                  <span className="text-2xl">{player.isHost ? '👑' : '🎮'}</span>
                   <div>
                     <p className="font-semibold text-gray-800">
                       {player.name}
                       {player.name === playerName && ' (You)'}
                     </p>
-                    <p className="text-sm text-gray-600">
-                      {player.isHost ? 'Host' : 'Player'}
-                    </p>
+                    <p className="text-sm text-gray-600">{player.isHost ? 'Host' : 'Player'}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   {!player.isHost && (
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      player.isReady 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        player.isReady ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
                       {player.isReady ? '✓ Ready' : 'Not Ready'}
                     </span>
                   )}
@@ -151,7 +144,7 @@ function MultiplayerLobbyContent() {
               </div>
             ))}
           </div>
-          
+
           {currentRoom.players.length < 8 && (
             <p className="text-center text-gray-500 text-sm mt-4">
               Waiting for more players to join...
@@ -163,7 +156,15 @@ function MultiplayerLobbyContent() {
         <div className="bg-blue-50 rounded-lg p-4 mb-6">
           <h3 className="font-semibold text-blue-900 mb-2">Game Rules:</h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• {currentRoom.players.length <= 4 ? '21' : currentRoom.players.length <= 6 ? '15' : '11'} tiles per player to start</li>
+            <li>
+              •{' '}
+              {currentRoom.players.length <= 4
+                ? '21'
+                : currentRoom.players.length <= 6
+                  ? '15'
+                  : '11'}{' '}
+              tiles per player to start
+            </li>
             <li>• When someone empties their hand, everyone draws 1 tile</li>
             <li>• Trade 1 tile for 3 new ones anytime</li>
             <li>• First to empty their hand when tiles run out wins!</li>
@@ -191,7 +192,7 @@ function MultiplayerLobbyContent() {
               {currentPlayer.isReady ? 'Cancel Ready' : 'Ready to Start'}
             </button>
           )}
-          
+
           {isHost && (
             <button
               onClick={handleStartGame}
@@ -205,7 +206,7 @@ function MultiplayerLobbyContent() {
               {isStarting ? 'Starting...' : 'Start Game'}
             </button>
           )}
-          
+
           <button
             onClick={handleLeaveRoom}
             className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition-colors"
@@ -213,11 +214,11 @@ function MultiplayerLobbyContent() {
             Leave Room
           </button>
         </div>
-        
+
         {isHost && !canStart && (
           <p className="text-center text-gray-600 text-sm mt-4">
-            {currentRoom.players.length < 2 
-              ? 'Need at least 2 players to start' 
+            {currentRoom.players.length < 2
+              ? 'Need at least 2 players to start'
               : 'Waiting for all players to be ready...'}
           </p>
         )}
@@ -228,15 +229,17 @@ function MultiplayerLobbyContent() {
 
 export default function MultiplayerLobby() {
   return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </main>
-    }>
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 p-4 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin text-4xl mb-4">⏳</div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </main>
+      }
+    >
       <MultiplayerLobbyContent />
     </Suspense>
   );
-} 
+}

@@ -23,39 +23,47 @@ export function useMarqueeSelection({
   gridRef,
   tiles,
   onSelectTiles,
-  isEnabled
+  isEnabled,
 }: UseMarqueeSelectionProps) {
   const [marqueeRect, setMarqueeRect] = useState<MarqueeRect | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
 
-  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isEnabled || !gridRef.current) return;
-    // Prevent starting marquee if clicking on an already draggable tile to allow tile drag
-    if ((event.target as HTMLElement).closest('[data-draggable-tile="true"]')) {
-      return;
-    }
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isEnabled || !gridRef.current) return;
+      // Prevent starting marquee if clicking on an already draggable tile to allow tile drag
+      if ((event.target as HTMLElement).closest('[data-draggable-tile="true"]')) {
+        return;
+      }
 
-    setIsSelecting(true);
-    const gridBounds = gridRef.current.getBoundingClientRect();
-    const x = event.clientX - gridBounds.left;
-    const y = event.clientY - gridBounds.top;
-    setMarqueeRect({ x, y, width: 0, height: 0, startX: x, startY: y });
-  }, [isEnabled, gridRef]);
+      setIsSelecting(true);
+      const gridBounds = gridRef.current.getBoundingClientRect();
+      const x = event.clientX - gridBounds.left;
+      const y = event.clientY - gridBounds.top;
+      setMarqueeRect({ x, y, width: 0, height: 0, startX: x, startY: y });
+    },
+    [isEnabled, gridRef]
+  );
 
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isSelecting || !marqueeRect || !gridRef.current) return;
+  const handleMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isSelecting || !marqueeRect || !gridRef.current) return;
 
-    const gridBounds = gridRef.current.getBoundingClientRect();
-    const currentX = event.clientX - gridBounds.left;
-    const currentY = event.clientY - gridBounds.top;
+      const gridBounds = gridRef.current.getBoundingClientRect();
+      const currentX = event.clientX - gridBounds.left;
+      const currentY = event.clientY - gridBounds.top;
 
-    const newX = Math.min(currentX, marqueeRect.startX);
-    const newY = Math.min(currentY, marqueeRect.startY);
-    const newWidth = Math.abs(currentX - marqueeRect.startX);
-    const newHeight = Math.abs(currentY - marqueeRect.startY);
+      const newX = Math.min(currentX, marqueeRect.startX);
+      const newY = Math.min(currentY, marqueeRect.startY);
+      const newWidth = Math.abs(currentX - marqueeRect.startX);
+      const newHeight = Math.abs(currentY - marqueeRect.startY);
 
-    setMarqueeRect(prev => prev ? { ...prev, x: newX, y: newY, width: newWidth, height: newHeight } : null);
-  }, [isSelecting, marqueeRect, gridRef]);
+      setMarqueeRect((prev) =>
+        prev ? { ...prev, x: newX, y: newY, width: newWidth, height: newHeight } : null
+      );
+    },
+    [isSelecting, marqueeRect, gridRef]
+  );
 
   const handleMouseUp = useCallback(() => {
     if (!isSelecting || !marqueeRect || !gridRef.current) {
@@ -67,12 +75,12 @@ export function useMarqueeSelection({
     const selectedIds: string[] = [];
     const gridBounds = gridRef.current.getBoundingClientRect();
 
-    tiles.forEach(tile => {
-      const cellElement = document.getElementById(tile.position); 
+    tiles.forEach((tile) => {
+      const cellElement = document.getElementById(tile.position);
       if (cellElement) {
         const cellRect = cellElement.getBoundingClientRect();
-        const tileX = cellRect.left - gridBounds.left + (cellRect.width / 2); // Center of the tile
-        const tileY = cellRect.top - gridBounds.top + (cellRect.height / 2); // Center of the tile
+        const tileX = cellRect.left - gridBounds.left + cellRect.width / 2; // Center of the tile
+        const tileY = cellRect.top - gridBounds.top + cellRect.height / 2; // Center of the tile
 
         if (
           tileX >= marqueeRect.x &&
@@ -94,7 +102,7 @@ export function useMarqueeSelection({
     marqueeRect,
     isSelecting,
     initiateMarquee: handleMouseDown, // Renamed for clarity in page.tsx
-    dragMarquee: handleMouseMove,     // Renamed for clarity
-    endMarquee: handleMouseUp,        // Renamed for clarity
+    dragMarquee: handleMouseMove, // Renamed for clarity
+    endMarquee: handleMouseUp, // Renamed for clarity
   };
-} 
+}

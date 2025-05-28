@@ -14,23 +14,28 @@ interface GridTileProps {
 export default function GridTile({ id, content, isSelected, isGhost, style }: GridTileProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
-    data: { overlayTile: !!style }
+    data: { overlayTile: !!style },
   });
-  
-  const baseStyle = transform && !style ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    zIndex: isDragging ? 1000 : (isSelected ? 900 : 1),
-    transition: isDragging ? undefined : 'transform 0.2s ease',
-    position: isDragging ? 'relative' as const : undefined,
-  } : (isSelected ? { zIndex: 900 } : {});
+
+  const baseStyle =
+    transform && !style
+      ? {
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+          zIndex: isDragging ? 1000 : isSelected ? 900 : 1,
+          transition: isDragging ? undefined : 'transform 0.2s ease',
+          position: isDragging ? ('relative' as const) : undefined,
+        }
+      : isSelected
+        ? { zIndex: 900 }
+        : {};
 
   const mergedStyle = { ...baseStyle, ...style };
-  
+
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       style={mergedStyle}
-      {...listeners} 
+      {...listeners}
       {...attributes}
       data-draggable-tile="true"
       className={`w-full h-full border rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm
@@ -44,4 +49,4 @@ export default function GridTile({ id, content, isSelected, isGhost, style }: Gr
       </div>
     </div>
   );
-} 
+}

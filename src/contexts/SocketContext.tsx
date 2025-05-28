@@ -2,16 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { 
-  MultiplayerRoom, 
-  GameStartData, 
-  PeelData, 
+import {
+  MultiplayerRoom,
+  GameStartData,
+  PeelData,
   GameWonData,
   PlayerBoardUpdateData,
   PlayerLeftData,
   DumpData,
   BoardTile,
-  PlayerHandUpdateData
+  PlayerHandUpdateData,
 } from '@/types/multiplayer';
 
 interface SocketContextType {
@@ -21,20 +21,28 @@ interface SocketContextType {
   playerName: string;
   setPlayerName: (name: string) => void;
   gameStartData: GameStartData | null;
-  
+
   // Room operations
-  createRoom: (playerName: string) => Promise<{ success: boolean; pin?: string; gameId?: string; error?: string }>;
-  joinRoom: (pin: string, playerName: string) => Promise<{ success: boolean; gameId?: string; error?: string }>;
+  createRoom: (
+    playerName: string
+  ) => Promise<{ success: boolean; pin?: string; gameId?: string; error?: string }>;
+  joinRoom: (
+    pin: string,
+    playerName: string
+  ) => Promise<{ success: boolean; gameId?: string; error?: string }>;
   toggleReady: () => void;
   startGame: () => Promise<{ success: boolean; error?: string }>;
-  
+
   // Game operations
   callPeel: () => Promise<{ success: boolean; won?: boolean; error?: string }>;
   dumpTile: (tileId: string) => Promise<{ success: boolean; newTiles?: any[]; error?: string }>;
   updateBoard: (boardTiles: BoardTile[]) => void;
   updateHandSize: (handSize: number) => void;
-  updateTileLocations: (data: { tilesMovedToBoard?: string[]; tilesMovedToHand?: string[] }) => void;
-  
+  updateTileLocations: (data: {
+    tilesMovedToBoard?: string[];
+    tilesMovedToHand?: string[];
+  }) => void;
+
   // Event listeners - components can use these to react to game events
   onRoomUpdate: (callback: (room: MultiplayerRoom) => void) => () => void;
   onGameStart: (callback: (data: GameStartData) => void) => () => void;
@@ -61,13 +69,11 @@ interface SocketProviderProps {
 }
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-  
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<MultiplayerRoom | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [gameStartData, setGameStartData] = useState<GameStartData | null>(null);
-  
 
   useEffect(() => {
     // Initialize socket connection
@@ -99,13 +105,15 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   }, []);
 
   // Room operations
-  const createRoom = async (name: string): Promise<{ success: boolean; pin?: string; gameId?: string; error?: string }> => {
+  const createRoom = async (
+    name: string
+  ): Promise<{ success: boolean; pin?: string; gameId?: string; error?: string }> => {
     return new Promise((resolve) => {
       if (!socket) {
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      
+
       socket.emit('createRoom', name, (response: any) => {
         if (response.success) {
           setPlayerName(name);
@@ -115,13 +123,16 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
   };
 
-  const joinRoom = async (pin: string, name: string): Promise<{ success: boolean; gameId?: string; error?: string }> => {
+  const joinRoom = async (
+    pin: string,
+    name: string
+  ): Promise<{ success: boolean; gameId?: string; error?: string }> => {
     return new Promise((resolve) => {
       if (!socket) {
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      
+
       socket.emit('joinRoom', pin, name, (response: any) => {
         if (response.success) {
           setPlayerName(name);
@@ -142,7 +153,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      
+
       socket.emit('startGame', (response: any) => {
         resolve(response);
       });
@@ -156,20 +167,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      
+
       socket.emit('peel', (response: any) => {
         resolve(response);
       });
     });
   };
 
-  const dumpTile = async (tileId: string): Promise<{ success: boolean; newTiles?: any[]; error?: string }> => {
+  const dumpTile = async (
+    tileId: string
+  ): Promise<{ success: boolean; newTiles?: any[]; error?: string }> => {
     return new Promise((resolve) => {
       if (!socket) {
         resolve({ success: false, error: 'Not connected to server' });
         return;
       }
-      
+
       socket.emit('dump', tileId, (response: any) => {
         resolve(response);
       });
@@ -186,7 +199,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     socket.emit('updateHandSize', handSize);
   };
 
-  const updateTileLocations = (data: { tilesMovedToBoard?: string[]; tilesMovedToHand?: string[] }) => {
+  const updateTileLocations = (data: {
+    tilesMovedToBoard?: string[];
+    tilesMovedToHand?: string[];
+  }) => {
     if (!socket) return;
     socket.emit('updateTileLocations', data);
   };
@@ -195,7 +211,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const onRoomUpdate = (callback: (room: MultiplayerRoom) => void) => {
     if (!socket) return () => {};
     socket.on('roomUpdate', callback);
-    return () => { socket.off('roomUpdate', callback); };
+    return () => {
+      socket.off('roomUpdate', callback);
+    };
   };
 
   const onGameStart = (callback: (data: GameStartData) => void) => {
@@ -207,45 +225,57 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       callback(data);
     };
     socket.on('gameStart', wrappedCallback);
-    return () => { 
-      socket.off('gameStart', wrappedCallback); 
+    return () => {
+      socket.off('gameStart', wrappedCallback);
     };
   };
 
   const onPeelCalled = (callback: (data: PeelData) => void) => {
     if (!socket) return () => {};
     socket.on('peelCalled', callback);
-    return () => { socket.off('peelCalled', callback); };
+    return () => {
+      socket.off('peelCalled', callback);
+    };
   };
 
   const onGameWon = (callback: (data: GameWonData) => void) => {
     if (!socket) return () => {};
     socket.on('gameWon', callback);
-    return () => { socket.off('gameWon', callback); };
+    return () => {
+      socket.off('gameWon', callback);
+    };
   };
 
   const onPlayerBoardUpdate = (callback: (data: PlayerBoardUpdateData) => void) => {
     if (!socket) return () => {};
     socket.on('playerBoardUpdate', callback);
-    return () => { socket.off('playerBoardUpdate', callback); };
+    return () => {
+      socket.off('playerBoardUpdate', callback);
+    };
   };
 
   const onPlayerLeft = (callback: (data: PlayerLeftData) => void) => {
     if (!socket) return () => {};
     socket.on('playerLeft', callback);
-    return () => { socket.off('playerLeft', callback); };
+    return () => {
+      socket.off('playerLeft', callback);
+    };
   };
 
   const onPlayerDumped = (callback: (data: DumpData) => void) => {
     if (!socket) return () => {};
     socket.on('playerDumped', callback);
-    return () => { socket.off('playerDumped', callback); };
+    return () => {
+      socket.off('playerDumped', callback);
+    };
   };
 
   const onPlayerHandUpdate = (callback: (data: PlayerHandUpdateData) => void) => {
     if (!socket) return () => {};
     socket.on('playerHandUpdate', callback);
-    return () => { socket.off('playerHandUpdate', callback); };
+    return () => {
+      socket.off('playerHandUpdate', callback);
+    };
   };
 
   const value: SocketContextType = {
@@ -274,9 +304,5 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     onPlayerHandUpdate,
   };
 
-  return (
-    <SocketContext.Provider value={value}>
-      {children}
-    </SocketContext.Provider>
-  );
-}; 
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
+};
