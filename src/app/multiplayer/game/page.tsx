@@ -298,12 +298,17 @@ function MultiplayerGameContent() {
             return tile;
           });
         });
+
+        // Update board state for multiplayer sync
+        setTimeout(() => {
+          updateBoard(gameState.tiles);
+        }, 0);
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedTileIds, gameState]);
+  }, [selectedTileIds, gameState, updateBoard]);
 
   const marqueeSelection = useMarqueeSelection({
     gridRef,
@@ -326,6 +331,8 @@ function MultiplayerGameContent() {
     selectedTileIds: selectedTileIds,
     onDumpTile: handleDumpTile,
     onTileLocationUpdate: updateTileLocations,
+    onBoardUpdate: updateBoard,
+    getCurrentBoardTiles: () => gameState.tiles,
   });
 
   const handleDndDragStart = (event: DragStartEvent) => {

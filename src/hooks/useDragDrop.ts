@@ -23,6 +23,10 @@ interface UseDragDropParams {
     tilesMovedToBoard?: string[];
     tilesMovedToHand?: string[];
   }) => void;
+  // Optional board update handler for multiplayer sync
+  onBoardUpdate?: (tiles: BoardTile[]) => void;
+  // Helper to get all current board tiles
+  getCurrentBoardTiles?: () => BoardTile[];
 }
 
 export function useDragDrop({
@@ -39,6 +43,8 @@ export function useDragDrop({
   selectedTileIds,
   onDumpTile,
   onTileLocationUpdate,
+  onBoardUpdate,
+  getCurrentBoardTiles,
 }: UseDragDropParams) {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -132,6 +138,11 @@ export function useDragDrop({
       if (onTileLocationUpdate) {
         onTileLocationUpdate({ tilesMovedToBoard: [activeId] });
       }
+
+      // Notify server about board update for multiplayer sync
+      if (onBoardUpdate && getCurrentBoardTiles) {
+        onBoardUpdate(getCurrentBoardTiles());
+      }
       return;
     }
 
@@ -206,6 +217,11 @@ export function useDragDrop({
           });
         });
 
+        // Notify server about board update for multiplayer sync
+        if (onBoardUpdate && getCurrentBoardTiles) {
+          onBoardUpdate(getCurrentBoardTiles());
+        }
+
         // Note: For multi-tile board movements, we don't need to update hand size
         // as tiles are just moving positions on the board
       } else {
@@ -238,6 +254,11 @@ export function useDragDrop({
               t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
             )
           );
+        }
+
+        // Notify server about board update for multiplayer sync
+        if (onBoardUpdate && getCurrentBoardTiles) {
+          onBoardUpdate(getCurrentBoardTiles());
         }
       }
       return;
