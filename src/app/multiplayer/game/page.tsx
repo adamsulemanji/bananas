@@ -16,6 +16,7 @@ import {
 import GridCell from '../../components/GridCell';
 import GridTile from '../../components/GridTile';
 import TrashArea from '../../components/TrashArea';
+import BoardValidation from '../../components/BoardValidation';
 import { useMultiplayerGameState } from '@/hooks/useMultiplayerGameState';
 import { useDragDrop } from '@/hooks/useDragDrop';
 import { useMarqueeSelection, MarqueeRect } from '@/hooks/useMarqueeSelection';
@@ -23,6 +24,7 @@ import { generateGridCellIds, transposeTiles } from '@/utils/gridUtils';
 import { GRID_SIZE } from '@/utils/config';
 import { BoardTile, PlayerTile } from '@/types/multiplayer';
 import { useSocket } from '@/contexts/SocketContext';
+import { useWordValidation } from '@/hooks/useWordValidation';
 
 // Helper function (can be moved to utils if used elsewhere)
 function getCellIndices(cellId: string): [number, number] {
@@ -78,6 +80,11 @@ function MultiplayerGameContent() {
   const [playerHandSizes, setPlayerHandSizes] = useState<Record<string, number>>({});
   const [playerBoardSizes, setPlayerBoardSizes] = useState<Record<string, number>>({});
   const [isLastRound, setIsLastRound] = useState(false);
+
+  // Word validation state
+  const { validateBoard, isInitialized: isWordValInitialized } = useWordValidation();
+  const [isBoardValid, setIsBoardValid] = useState(false);
+  const [invalidTileIds, setInvalidTileIds] = useState<Set<string>>(new Set());
 
   // Configure sensors to capture initial cursor position
   const sensors = useSensors(
@@ -184,7 +191,7 @@ function MultiplayerGameContent() {
     if (gameState.tiles.length > 0 || gameState.playerHand.length > 0) {
       updateBoard(gameState.tiles);
     }
-  }, [gameState.tiles, updateBoard]);
+  }, [gameState.tiles, updateBoard, gameState.playerHand.length]);
 
   // Track if we're in a drag operation to avoid duplicate hand size updates
   const [isDragging, setIsDragging] = useState(false);
@@ -195,6 +202,36 @@ function MultiplayerGameContent() {
       updateHandSize(gameState.playerHand.length);
     }
   }, [gameState.playerHand.length, updateHandSize, isDragging]);
+
+  // Validate board and compute invalid tiles whenever tiles change
+  useEffect(() => {
+    if (!isWordValInitialized) return;
+    let cancelled = false;
+    (async () => {
+      const result = await validateBoard(gameState.tiles);
+      if (cancelled) return;
+      const invalidIds = new Set<string>();
+
+      // Mark tiles in invalid words
+      result.invalidWords.forEach((word) => {
+        word.tiles.forEach((t) => invalidIds.add(t.tileId));
+      });
+
+      // Mark isolated tiles (not part of any 2+ letter word)
+      result.isolatedTiles.forEach((t) => invalidIds.add(t.id));
+
+      // If board is not connected, mark all placed tiles as invalid
+      if (!result.isConnected) {
+        gameState.tiles.forEach((t) => invalidIds.add(t.id));
+      }
+
+      setInvalidTileIds(invalidIds);
+      setIsBoardValid(result.isValid);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameState.tiles, validateBoard, isWordValInitialized]);
 
   // Automatically call peel when player runs out of tiles (but not on initial load)
   const [hasInitialTiles, setHasInitialTiles] = useState(false);
@@ -212,12 +249,13 @@ function MultiplayerGameContent() {
       currentRoom?.gameState === 'playing' &&
       hasInitialTiles &&
       !isCallingPeel &&
+      isBoardValid && // ensure board is valid before calling PEEL
       gameState.tiles.length > 0
     ) {
       // Add a small delay to ensure the game state is fully updated
       const timer = setTimeout(async () => {
         // Double-check that we still have no tiles in hand
-        if (gameState.playerHand.length === 0 && !isCallingPeel && gameState.tiles.length > 0) {
+        if (gameState.playerHand.length === 0 && !isCallingPeel && isBoardValid) {
           setIsCallingPeel(true);
           setGameStatus('You ran out of tiles! Calling PEEL...');
           const result = await callPeel();
@@ -242,6 +280,7 @@ function MultiplayerGameContent() {
     callPeel,
     hasInitialTiles,
     isCallingPeel,
+    isBoardValid,
   ]);
 
   const handleDumpTile = async (tileId: string) => {
@@ -564,6 +603,7 @@ function MultiplayerGameContent() {
                           id={tile.id}
                           content={tile.content}
                           isSelected={selectedTileIds.includes(tile.id)}
+                          isInvalidWord={invalidTileIds.has(tile.id)}
                           isGhost={
                             activeDragData !== null &&
                             selectedTileIds.includes(tile.id) &&
@@ -603,6 +643,15 @@ function MultiplayerGameContent() {
                     pointerEvents: 'none',
                   }}
                 />
+              )}
+            </div>
+            {/* Board Validation Panel */}
+            <div className="mt-4">
+              <BoardValidation tiles={gameState.tiles as any} showDetails={true} />
+              {!isBoardValid && gameState.tiles.length > 0 && (
+                <p className="mt-2 text-sm text-red-700">
+                  Some tiles are highlighted because of invalid words, isolated tiles, or disconnected layout.
+                </p>
               )}
             </div>
           </div>
@@ -734,6 +783,7 @@ function MultiplayerGameContent() {
                             id={tile.id}
                             content={tile.content} // BoardTile has content
                             isSelected={true}
+                            isInvalidWord={invalidTileIds.has(tile.id)}
                             style={tileStyle}
                           />
                         );
@@ -754,6 +804,7 @@ function MultiplayerGameContent() {
                       id={activeId}
                       content={content}
                       isSelected={true}
+                      isInvalidWord={invalidTileIds.has(activeId)}
                       style={{ width: cellWidth, height: cellHeight }}
                     />
                   );

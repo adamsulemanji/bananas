@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Banagrams Game",
-  description: "A fun word game similar to Scrabble but without a board",
+  description: "Online multiplayer Banagrams game",
 };
 
 export default function RootLayout({

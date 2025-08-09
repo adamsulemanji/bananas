@@ -1,5 +1,7 @@
 import { GRID_SIZE } from './config';
 
+export { GRID_SIZE };
+
 // Generate IDs for all cells in the grid
 export const generateGridCellIds = () => {
   return Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => `cell-${i}`);

@@ -17,9 +17,11 @@ import GridCell from '../../components/GridCell';
 import GridTile from '../../components/GridTile';
 import TilePalette from '../../components/TilePalette';
 import TrashArea from '../../components/TrashArea';
+import BoardValidation from '../../components/BoardValidation';
 import { useGameState } from '../../../hooks/useGameState';
 import { useDragDrop } from '../../../hooks/useDragDrop';
 import { useMarqueeSelection, MarqueeRect } from '../../../hooks/useMarqueeSelection';
+import { useWordValidation } from '../../../hooks/useWordValidation';
 import { generateGridCellIds, transposeTiles } from '../../../utils/gridUtils';
 import { GRID_SIZE } from '../../../utils/config';
 import { BoardTile, PlayerTile } from '../../../utils/gameUtils';
@@ -50,9 +52,12 @@ export default function GamePage() {
   const [hasWon, setHasWon] = useState(false);
   const [gameStartTime, setGameStartTime] = useState(Date.now());
   const [finalScore, setFinalScore] = useState<number | null>(null);
+  const [isBoardValid, setIsBoardValid] = useState(false);
+  const [invalidTileIds, setInvalidTileIds] = useState<Set<string>>(new Set());
 
   const gridCellIds = generateGridCellIds();
   const gameState = useGameState();
+  const { validateBoard } = useWordValidation();
   const gridRef = useRef<HTMLDivElement>(null);
   const [selectedTileIds, setSelectedTileIds] = useState<string[]>([]);
   const [isDndDragging, setIsDndDragging] = useState(false);
@@ -122,14 +127,35 @@ export default function GamePage() {
     return () => clearInterval(saveInterval);
   }, [gameId, gamePin, gameState.tiles, gameState.playerHand, gameState.letterBag]);
 
+  // Update invalid tile tracking whenever tiles change
+  useEffect(() => {
+    const updateInvalidTiles = async () => {
+      const validationResult = await validateBoard(gameState.tiles);
+      
+      // Get all tile IDs that are part of invalid words
+      const invalidIds = new Set<string>();
+      validationResult.invalidWords.forEach(word => {
+        word.tiles.forEach(tile => {
+          invalidIds.add(tile.tileId);
+        });
+      });
+      
+      setInvalidTileIds(invalidIds);
+    };
+
+    updateInvalidTiles();
+  }, [gameState.tiles, validateBoard]);
+
   // Check for win condition
   useEffect(() => {
     // Player wins when they have no tiles in hand AND no tiles remaining in the bag
     // Must have at least some tiles on the board to win
+    // AND the board must be valid (all words are correct)
     if (
       gameState.playerHand.length === 0 &&
       gameState.getRemainingTileCount() === 0 &&
       gameState.tiles.length > 0 &&
+      isBoardValid &&
       !hasWon
     ) {
       // Calculate score based on time taken (in seconds)
@@ -165,6 +191,9 @@ export default function GamePage() {
     gameState.tiles.length,
     gameId,
     gameStartTime,
+    isBoardValid,
+    hasWon,
+    gameState,
   ]);
 
   const handleSelectTiles = useCallback((ids: string[]) => {
@@ -446,6 +475,14 @@ export default function GamePage() {
           onTradeInTile={gameState.handleTradeInTile}
         />
 
+        <div className="w-full max-w-5xl mx-auto mb-4">
+          <BoardValidation 
+            tiles={gameState.tiles} 
+            onValidationChange={setIsBoardValid}
+            showDetails={true}
+          />
+        </div>
+
         <div
           className="w-full max-w-5xl mx-auto relative"
           onMouseDown={marqueeSelection.initiateMarquee}
@@ -467,6 +504,7 @@ export default function GamePage() {
                       id={tile.id}
                       content={tile.content}
                       isSelected={selectedTileIds.includes(tile.id)}
+                      isInvalidWord={invalidTileIds.has(tile.id)}
                       isGhost={
                         activeDragData !== null &&
                         selectedTileIds.includes(tile.id) &&
@@ -591,6 +629,7 @@ export default function GamePage() {
                             id={tile.id}
                             content={tile.content} // BoardTile has content
                             isSelected={true}
+                            isInvalidWord={invalidTileIds.has(tile.id)}
                             style={tileStyle}
                           />
                         );
@@ -611,6 +650,7 @@ export default function GamePage() {
                       id={activeId}
                       content={content}
                       isSelected={true}
+                      isInvalidWord={invalidTileIds.has(activeId)}
                       style={{ width: cellWidth, height: cellHeight }}
                     />
                   );

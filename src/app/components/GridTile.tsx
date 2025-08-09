@@ -8,10 +8,11 @@ interface GridTileProps {
   content: string;
   isSelected?: boolean;
   isGhost?: boolean;
+  isInvalidWord?: boolean;
   style?: React.CSSProperties;
 }
 
-export default function GridTile({ id, content, isSelected, isGhost, style }: GridTileProps) {
+export default function GridTile({ id, content, isSelected, isGhost, isInvalidWord, style }: GridTileProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
     data: { overlayTile: !!style },
@@ -39,13 +40,13 @@ export default function GridTile({ id, content, isSelected, isGhost, style }: Gr
       {...attributes}
       data-draggable-tile="true"
       className={`w-full h-full border rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm
-                  ${isDragging ? 'opacity-80 shadow-lg border-yellow-700' : 'border-yellow-700'}
-                  ${isSelected && !isDragging ? 'bg-blue-200 border-blue-500' : 'bg-yellow-100'}
+                  ${isDragging ? 'opacity-80 shadow-lg border-yellow-700' : isInvalidWord ? 'border-red-500' : 'border-yellow-700'}
+                  ${isSelected && !isDragging ? 'bg-blue-200 border-blue-500' : isInvalidWord ? 'bg-red-100' : 'bg-yellow-100'}
                   ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
                   ${isGhost ? 'opacity-30' : ''}`}
     >
       <div className="relative w-full h-full flex items-center justify-center select-none">
-        <span className="text-center text-black">{content.toUpperCase()}</span>
+        <span className={`text-center ${isInvalidWord ? 'text-red-700' : 'text-black'}`}>{content.toUpperCase()}</span>
       </div>
     </div>
   );
