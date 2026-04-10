@@ -1,6 +1,3 @@
-// This file will be replaced with the landing page
-// The game logic has been moved to src/app/game/[gameId]/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -16,6 +13,10 @@ import {
 import GameManagement from './components/GameManagement';
 import { useSocket } from '@/contexts/SocketContext';
 
+const HERO_TILES = ['B', 'A', 'N', 'A', 'N', 'A', 'G', 'R', 'A', 'M', 'S'];
+const ROTATIONS = [-4, 2, -2, 5, -3, 1, -5, 3, -1, 4, -2];
+const FLOAT_DELAYS = [0, 0.8, 1.6, 0.4, 1.2, 2.0, 0.6, 1.4, 0.2, 1.0, 1.8];
+
 export default function LandingPage() {
   const router = useRouter();
   const [restorePin, setRestorePin] = useState('');
@@ -24,7 +25,6 @@ export default function LandingPage() {
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [showGameManagement, setShowGameManagement] = useState(false);
 
-  // Multiplayer states
   const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
   const [multiplayerMode, setMultiplayerMode] = useState<'create' | 'join' | null>(null);
   const [playerName, setPlayerName] = useState('');
@@ -34,7 +34,6 @@ export default function LandingPage() {
 
   const { createRoom, joinRoom, isConnected } = useSocket();
 
-  // Load recent games on mount
   useEffect(() => {
     const recent = getRecentSessions(3);
     setRecentGames(recent);
@@ -42,35 +41,26 @@ export default function LandingPage() {
 
   const handleStartNewGame = async () => {
     setIsCreatingGame(true);
-
-    // Generate new game session
     const gameId = generateGameId();
     const pin = generatePin();
-
     const newSession: GameSession = {
       gameId,
       pin,
       createdAt: new Date(),
       lastSaved: new Date(),
-      gameState: '', // Empty string instead of empty object - will trigger proper initialization
+      gameState: '',
     };
-
-    // Save session to local storage (will be server in future)
     saveGameSession(newSession);
-
-    // Navigate to game
     router.push(`/game/${gameId}`);
   };
 
   const handleRestoreGame = (e: React.FormEvent) => {
     e.preventDefault();
     setRestoreError(null);
-
     if (restorePin.length !== 4) {
       setRestoreError('PIN must be 4 digits');
       return;
     }
-
     const session = getGameSessionByPin(restorePin);
     if (session) {
       router.push(`/game/${session.gameId}`);
@@ -80,16 +70,10 @@ export default function LandingPage() {
   };
 
   const handleCreateMultiplayerRoom = async () => {
-    if (!playerName.trim()) {
-      setMultiplayerError('Please enter your name');
-      return;
-    }
-
+    if (!playerName.trim()) { setMultiplayerError('Please enter your name'); return; }
     setIsProcessing(true);
     setMultiplayerError('');
-
     const result = await createRoom(playerName);
-
     if (result.success && result.pin) {
       router.push(`/multiplayer/lobby?pin=${result.pin}`);
     } else {
@@ -99,21 +83,11 @@ export default function LandingPage() {
   };
 
   const handleJoinMultiplayerRoom = async () => {
-    if (!playerName.trim()) {
-      setMultiplayerError('Please enter your name');
-      return;
-    }
-
-    if (joinPin.length !== 4) {
-      setMultiplayerError('PIN must be 4 digits');
-      return;
-    }
-
+    if (!playerName.trim()) { setMultiplayerError('Please enter your name'); return; }
+    if (joinPin.length !== 4) { setMultiplayerError('PIN must be 4 digits'); return; }
     setIsProcessing(true);
     setMultiplayerError('');
-
     const result = await joinRoom(joinPin, playerName);
-
     if (result.success) {
       router.push(`/multiplayer/lobby?pin=${joinPin}`);
     } else {
@@ -124,218 +98,372 @@ export default function LandingPage() {
 
   const formatDate = (date: Date) => {
     const d = new Date(date);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 60) {
-      return `${diffMins} minutes ago`;
-    } else if (diffMins < 1440) {
-      const hours = Math.floor(diffMins / 60);
-      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    } else {
-      return d.toLocaleDateString();
-    }
+    const diffMins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return d.toLocaleDateString();
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-amber-50 to-yellow-100 p-4">
-      <div className="max-w-4xl mx-auto pt-12">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-bold text-amber-800 mb-4">🍌 Bananagrams</h1>
-          <p className="text-xl text-amber-700">Create words, solve puzzles, have fun!</p>
-        </div>
+    <main className="min-h-screen bg-ink relative overflow-x-hidden">
 
-        {/* Main Options */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
-          {/* Start New Game */}
-          <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Start New Game</h2>
-            <p className="text-gray-600 mb-6">
-              Begin a fresh single-player game. Your progress will be automatically saved.
-            </p>
-            <button
-              onClick={handleStartNewGame}
-              disabled={isCreatingGame}
-              className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+      {/* Dot-grid texture */}
+      <div className="fixed inset-0 bg-dot-texture pointer-events-none" aria-hidden="true" />
+
+      {/* Faint corner vignette */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%)' }}
+        aria-hidden="true"
+      />
+
+      <div className="relative max-w-4xl mx-auto px-6">
+
+        {/* ── Hero ── */}
+        <section className="pt-16 pb-10 text-center">
+
+          {/* Top eyebrow rule */}
+          <div className="reveal-1 flex items-center gap-4 mb-10">
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, #5a4830)' }} />
+            <span
+              className="text-[10px] tracking-[0.45em] uppercase"
+              style={{ color: 'var(--aged)', fontFamily: 'var(--font-crimson-body)' }}
             >
-              {isCreatingGame ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Creating Game...
-                </>
-              ) : (
-                <>🎮 Start Single Player</>
-              )}
+              The Classic Word Game
+            </span>
+            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, #5a4830)' }} />
+          </div>
+
+          {/* Main title */}
+          <div className="reveal-2">
+            <h1
+              className="text-5xl sm:text-7xl md:text-8xl leading-none mb-6 tracking-wider"
+              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+            >
+              BANANAGRAMS
+            </h1>
+            <p
+              className="text-lg italic mb-10"
+              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+            >
+              Assemble your tiles. Form your words. Beat the bunch.
+            </p>
+          </div>
+
+          {/* Floating decorative tiles */}
+          <div className="reveal-3 flex flex-wrap justify-center gap-2 mb-10">
+            {HERO_TILES.map((letter, i) => (
+              <div
+                key={i}
+                className="float-tile"
+                style={{
+                  '--tile-rotate': `${ROTATIONS[i]}deg`,
+                  animationDelay: `${FLOAT_DELAYS[i]}s`,
+                  animationDuration: `${3.5 + (i % 3) * 0.5}s`,
+                } as React.CSSProperties}
+              >
+                <div
+                  className="w-10 h-10 flex items-center justify-center tile-shadow"
+                  style={{
+                    background: 'var(--tile-bg)',
+                    border: '1px solid var(--tile-border)',
+                    fontFamily: 'var(--font-courier-prime)',
+                    fontWeight: 700,
+                    color: 'var(--ink)',
+                    fontSize: '1.1rem',
+                    transform: `rotate(${ROTATIONS[i]}deg)`,
+                    borderRadius: '2px',
+                    userSelect: 'none',
+                  }}
+                >
+                  {letter}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ornamental rule */}
+          <div className="reveal-3 flex items-center gap-3 text-brass/50 mb-0">
+            <div className="flex-1 h-px bg-case" />
+            <span className="text-brass text-base">✦</span>
+            <div className="flex-1 h-px bg-case" />
+            <span className="text-brass/60 text-xs">✦</span>
+            <div className="flex-1 h-px bg-case" />
+          </div>
+        </section>
+
+        {/* ── Action Cards ── */}
+        <section className="pb-8">
+          <div className="grid md:grid-cols-2 gap-5 mb-5">
+
+            {/* New Game */}
+            <div className="reveal-4 card-press p-8 flex flex-col">
+              <div
+                className="text-[10px] tracking-[0.4em] uppercase mb-3"
+                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+              >
+                Solo Play
+              </div>
+              <h2
+                className="text-2xl mb-4"
+                style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+              >
+                New Game
+              </h2>
+              <p
+                className="text-base leading-relaxed mb-8 flex-1"
+                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+              >
+                Begin a fresh single-player game. Your progress is automatically saved and can be resumed with a 4-digit PIN.
+              </p>
+              <button
+                onClick={handleStartNewGame}
+                disabled={isCreatingGame}
+                className="btn-press w-full"
+              >
+                {isCreatingGame ? 'Dealing Tiles...' : 'Deal Tiles'}
+              </button>
+            </div>
+
+            {/* Continue Game */}
+            <div className="reveal-4 card-press p-8 flex flex-col">
+              <div
+                className="text-[10px] tracking-[0.4em] uppercase mb-3"
+                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+              >
+                Resume
+              </div>
+              <h2
+                className="text-2xl mb-4"
+                style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+              >
+                Continue Game
+              </h2>
+              <p
+                className="text-base leading-relaxed mb-6 flex-1"
+                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+              >
+                Return to a saved game using your 4-digit PIN.
+              </p>
+              <form onSubmit={handleRestoreGame} className="space-y-3">
+                <input
+                  type="text"
+                  value={restorePin}
+                  onChange={(e) => {
+                    setRestorePin(e.target.value.replace(/\D/g, '').slice(0, 4));
+                    setRestoreError(null);
+                  }}
+                  placeholder="· · · ·"
+                  className="pin-input"
+                  maxLength={4}
+                />
+                {restoreError && (
+                  <p
+                    className="text-sm italic"
+                    style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)' }}
+                  >
+                    {restoreError}
+                  </p>
+                )}
+                <button type="submit" className="btn-ghost w-full">
+                  Restore
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Multiplayer */}
+          <div className="reveal-5 card-press p-8 mb-5">
+            <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
+              <div>
+                <div
+                  className="text-[10px] tracking-[0.4em] uppercase mb-3"
+                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+                >
+                  Real-Time · 2–8 Players
+                </div>
+                <h2
+                  className="text-2xl mb-2"
+                  style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+                >
+                  Multiplayer
+                </h2>
+                <p
+                  className="text-base"
+                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+                >
+                  Create a room or join a friend's game with their PIN.
+                  {!isConnected && (
+                    <span className="italic ml-2" style={{ color: 'var(--rule)' }}>
+                      Connecting...
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex gap-3 shrink-0">
+                <button
+                  onClick={() => { setShowMultiplayerModal(true); setMultiplayerMode('create'); }}
+                  disabled={!isConnected}
+                  className="btn-press"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => { setShowMultiplayerModal(true); setMultiplayerMode('join'); }}
+                  disabled={!isConnected}
+                  className="btn-ghost"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Games */}
+          {recentGames.length > 0 && (
+            <div className="reveal-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1 h-px bg-case" />
+                <span
+                  className="text-[10px] tracking-[0.4em] uppercase"
+                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+                >
+                  Recent Games
+                </span>
+                <div className="flex-1 h-px bg-case" />
+              </div>
+              <div className="space-y-2">
+                {recentGames.map((game) => (
+                  <div
+                    key={game.gameId}
+                    className="card-press flex items-center justify-between px-6 py-4 cursor-pointer"
+                    onClick={() => router.push(`/game/${game.gameId}`)}
+                  >
+                    <div>
+                      <span
+                        className="text-xl tracking-[0.4em]"
+                        style={{ fontFamily: 'var(--font-courier-prime)', color: 'var(--cream)' }}
+                      >
+                        {game.pin}
+                      </span>
+                      <p
+                        className="text-xs italic mt-0.5"
+                        style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+                      >
+                        {formatDate(game.lastSaved)}
+                      </p>
+                    </div>
+                    <span
+                      className="text-xs tracking-[0.3em] uppercase"
+                      style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)', opacity: 0.7 }}
+                    >
+                      Resume →
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="pb-12">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex-1 h-px bg-case" />
+            <span className="text-brass/30 text-xs">✦</span>
+            <div className="flex-1 h-px bg-case" />
+          </div>
+          <div className="text-center">
+            <button
+              onClick={() => setShowGameManagement(!showGameManagement)}
+              className="text-xs italic transition-colors duration-200"
+              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)' }}
+              onMouseOver={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+              onMouseOut={(e) => (e.currentTarget.style.color = 'var(--rule)')}
+            >
+              {showGameManagement ? 'hide' : 'show'} advanced options
             </button>
           </div>
+          {showGameManagement && <GameManagement />}
+        </footer>
 
-          {/* Restore Game */}
-          <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Continue Game</h2>
-            <p className="text-gray-600 mb-6">Enter your 4-digit PIN to restore a previous game.</p>
-            <form onSubmit={handleRestoreGame} className="space-y-4">
-              <input
-                type="text"
-                value={restorePin}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                  setRestorePin(value);
-                  setRestoreError(null);
-                }}
-                placeholder="Enter PIN"
-                className="text-black w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-mono focus:border-amber-500 focus:outline-none"
-                maxLength={4}
-              />
-              {restoreError && <p className="text-red-500 text-sm">{restoreError}</p>}
-              <button
-                type="submit"
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-              >
-                🔓 Restore Game
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Multiplayer Section */}
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg p-8 mb-8">
-          <div className="text-center text-white">
-            <h2 className="text-3xl font-bold mb-4">🌟 NEW: Multiplayer Mode!</h2>
-            <p className="text-lg mb-6">
-              Play with 2-8 friends in real-time. Create a room or join with a PIN!
-            </p>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => {
-                  setShowMultiplayerModal(true);
-                  setMultiplayerMode('create');
-                }}
-                disabled={!isConnected}
-                className="bg-white text-purple-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Create Room
-              </button>
-              <button
-                onClick={() => {
-                  setShowMultiplayerModal(true);
-                  setMultiplayerMode('join');
-                }}
-                disabled={!isConnected}
-                className="bg-white text-pink-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Join Room
-              </button>
-            </div>
-            {!isConnected && (
-              <p className="text-yellow-200 text-sm mt-4">Connecting to server...</p>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Games */}
-        {recentGames.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Recent Games</h2>
-            <div className="space-y-3">
-              {recentGames.map((game) => (
-                <div
-                  key={game.gameId}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors text-black"
-                  onClick={() => router.push(`/game/${game.gameId}`)}
-                >
-                  <div>
-                    <span className="font-mono font-bold text-lg">PIN: {game.pin}</span>
-                    <p className="text-sm text-gray-600">
-                      Last played {formatDate(game.lastSaved)}
-                    </p>
-                  </div>
-                  <button className="text-amber-600 hover:text-amber-700">Continue →</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Advanced Game Management */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setShowGameManagement(!showGameManagement)}
-            className="text-gray-600 hover:text-gray-800 text-sm underline"
-          >
-            {showGameManagement ? 'Hide' : 'Show'} Advanced Options
-          </button>
-        </div>
-
-        {showGameManagement && <GameManagement />}
-
-        {/* Coming Soon Section */}
-        <div className="mt-12 text-center text-gray-500">
-          <p className="text-sm mb-2">Coming Soon</p>
-          <div className="flex gap-4 justify-center">
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">🏆 Leaderboards</span>
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">📱 Mobile App</span>
-            <span className="px-4 py-2 bg-gray-200 rounded-lg text-gray-600">🎨 Custom Themes</span>
-          </div>
-        </div>
       </div>
 
-      {/* Multiplayer Modal */}
+      {/* ── Multiplayer Modal ── */}
       {showMultiplayerModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">
-              {multiplayerMode === 'create' ? 'Create Multiplayer Room' : 'Join Multiplayer Room'}
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50"
+          style={{ background: 'rgba(13,10,6,0.85)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="animate-fadeIn w-full max-w-md p-8"
+            style={{ background: 'var(--press)', border: '1px solid var(--case)' }}
+          >
+            <div
+              className="text-[10px] tracking-[0.4em] uppercase mb-2"
+              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+            >
+              {multiplayerMode === 'create' ? 'New Room' : 'Enter Room'}
+            </div>
+            <h3
+              className="text-2xl mb-6"
+              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+            >
+              {multiplayerMode === 'create' ? 'Create Room' : 'Join Room'}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                <label
+                  className="block text-[10px] tracking-[0.35em] uppercase mb-2"
+                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+                >
+                  Your Name
+                </label>
                 <input
                   type="text"
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Enter your name"
-                  className="text-black w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-amber-500 focus:outline-none"
+                  className="input-press"
                   maxLength={20}
                 />
               </div>
 
               {multiplayerMode === 'join' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Room PIN</label>
+                  <label
+                    className="block text-[10px] tracking-[0.35em] uppercase mb-2"
+                    style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+                  >
+                    Room PIN
+                  </label>
                   <input
                     type="text"
                     value={joinPin}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      setJoinPin(value);
-                    }}
-                    placeholder="Enter 4-digit PIN"
-                    className="text-black w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-center text-xl font-mono focus:border-amber-500 focus:outline-none"
+                    onChange={(e) => setJoinPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="· · · ·"
+                    className="pin-input"
                     maxLength={4}
                   />
                 </div>
               )}
 
-              {multiplayerError && <p className="text-red-500 text-sm">{multiplayerError}</p>}
-
-              <div className="flex gap-4 mt-6">
-                <button
-                  onClick={
-                    multiplayerMode === 'create'
-                      ? handleCreateMultiplayerRoom
-                      : handleJoinMultiplayerRoom
-                  }
-                  disabled={isProcessing}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              {multiplayerError && (
+                <p
+                  className="text-sm italic"
+                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)' }}
                 >
-                  {isProcessing
-                    ? 'Processing...'
-                    : multiplayerMode === 'create'
-                      ? 'Create Room'
-                      : 'Join Room'}
+                  {multiplayerError}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={multiplayerMode === 'create' ? handleCreateMultiplayerRoom : handleJoinMultiplayerRoom}
+                  disabled={isProcessing}
+                  className="btn-press flex-1"
+                >
+                  {isProcessing ? 'Processing...' : multiplayerMode === 'create' ? 'Create' : 'Join'}
                 </button>
                 <button
                   onClick={() => {
@@ -345,7 +473,7 @@ export default function LandingPage() {
                     setPlayerName('');
                     setJoinPin('');
                   }}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors"
+                  className="btn-ghost flex-1"
                 >
                   Cancel
                 </button>

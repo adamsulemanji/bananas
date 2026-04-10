@@ -426,21 +426,36 @@ export default function GamePage() {
   // Show win screen if player has won
   if (hasWon) {
     return (
-      <main className="min-h-screen bg-amber-50 p-4 flex items-center justify-center">
-        <div className="text-center bg-white rounded-xl shadow-2xl p-12 max-w-md mx-auto animate-fadeIn">
+      <main className="min-h-screen p-4 flex items-center justify-center bg-dot-texture" style={{ background: 'var(--ink)' }}>
+        <div className="text-center animate-fadeIn p-12 max-w-md mx-auto" style={{ background: 'var(--press)', border: '1px solid var(--case)' }}>
           <div className="mb-6">
-            <div className="text-6xl mb-4 animate-bounce">🎉</div>
-            <h1 className="text-4xl font-bold text-amber-800 mb-2">Congratulations!</h1>
-            <p className="text-xl text-gray-600">You've completed the puzzle!</p>
+            <div
+              className="text-5xl mb-5"
+              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)', letterSpacing: '0.1em' }}
+            >
+              ✦
+            </div>
+            <h1
+              className="text-3xl mb-3"
+              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)', letterSpacing: '0.12em' }}
+            >
+              Congratulations
+            </h1>
+            <p style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)', fontSize: '1.1rem', fontStyle: 'italic' }}>
+              The puzzle is complete.
+            </p>
           </div>
 
-          <div className="bg-amber-50 rounded-lg p-6 mb-8">
-            <div className="text-3xl font-bold text-amber-700 mb-2">
-              Score: {finalScore?.toLocaleString()}
+          <div className="p-6 mb-8" style={{ border: '1px solid var(--case)', background: 'var(--type)' }}>
+            <div
+              className="text-3xl mb-2"
+              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)' }}
+            >
+              {finalScore?.toLocaleString()}
             </div>
-            <div className="text-sm text-gray-600">
-              Time: {Math.floor((Date.now() - gameStartTime) / 60000)} minutes{' '}
-              {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)} seconds
+            <div style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+              {Math.floor((Date.now() - gameStartTime) / 60000)}m{' '}
+              {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)}s
             </div>
           </div>
 
@@ -454,13 +469,13 @@ export default function GamePage() {
                   setGameStartTime(Date.now());
                 }
               }}
-              className="w-full px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors"
+              className="btn-press w-full"
             >
               Play Again
             </button>
             <button
               onClick={() => router.push('/')}
-              className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors"
+              className="btn-ghost w-full"
             >
               Back to Home
             </button>
@@ -472,20 +487,26 @@ export default function GamePage() {
 
   return (
     <main
-      className="min-h-screen p-4 flex flex-col items-center bg-amber-50 relative"
+      className="min-h-screen p-4 flex flex-col items-center relative bg-dot-texture"
+      style={{ background: 'var(--ink)' }}
       onMouseMove={marqueeSelection.dragMarquee}
       onMouseUp={marqueeSelection.endMarquee}
     >
-      <div className="w-full max-w-5xl mx-auto flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-black">Bananagrams</h1>
+      <div className="w-full max-w-5xl mx-auto flex justify-between items-center mb-4 py-2" style={{ borderBottom: '1px solid var(--case)' }}>
+        <h1
+          className="text-xl tracking-widest"
+          style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+        >
+          BANANAGRAMS
+        </h1>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            PIN: <span className="font-mono font-bold">{gamePin || '----'}</span>
+          <div style={{ fontFamily: 'var(--font-courier-prime)', color: 'var(--aged)', fontSize: '0.85rem', letterSpacing: '0.15em' }}>
+            {gamePin || '----'}
           </div>
-          <div className="text-xs text-gray-500">
-            {saveStatus === 'saving' && '⏳ Saving...'}
-            {saveStatus === 'saved' && '✓ Saved'}
-            {saveStatus === 'error' && '⚠️ Save error'}
+          <div style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)', fontSize: '0.75rem', fontStyle: 'italic' }}>
+            {saveStatus === 'saving' && 'saving...'}
+            {saveStatus === 'saved' && 'saved'}
+            {saveStatus === 'error' && 'save error'}
           </div>
           <button
             onClick={() => {
@@ -497,15 +518,17 @@ export default function GamePage() {
                 gameState.resetGame();
               }
             }}
-            className="px-3 py-1 text-sm text-black bg-yellow-200 hover:bg-yellow-300 rounded transition-colors"
+            className="btn-ghost"
+            style={{ padding: '0.25rem 0.75rem', fontSize: '0.65rem' }}
           >
-            Reset Game
+            Reset
           </button>
           <button
             onClick={() => router.push('/')}
-            className="px-3 py-1 text-sm text-black bg-amber-200 hover:bg-amber-300 rounded transition-colors"
+            className="btn-ghost"
+            style={{ padding: '0.25rem 0.75rem', fontSize: '0.65rem' }}
           >
-            Exit Game
+            Exit
           </button>
         </div>
       </div>
@@ -537,8 +560,10 @@ export default function GamePage() {
         >
           <div
             ref={gridRef}
-            className={`grid grid-cols-${GRID_SIZE} gap-1 border-2 border-amber-800 bg-amber-100 p-2 w-full aspect-square relative`}
+            className={`grid grid-cols-${GRID_SIZE} gap-0 p-1 w-full aspect-square relative`}
             style={{
+              border: '1px solid var(--case)',
+              background: 'var(--ink)',
               position: 'relative',
               zIndex: 0,
             }}
@@ -572,8 +597,8 @@ export default function GamePage() {
                 top: marqueeSelection.marqueeRect.y,
                 width: marqueeSelection.marqueeRect.width,
                 height: marqueeSelection.marqueeRect.height,
-                border: '1px dashed blue',
-                backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                border: '1px dashed rgba(200,148,26,0.6)',
+                backgroundColor: 'rgba(200,148,26,0.06)',
                 pointerEvents: 'none',
               }}
             />
@@ -588,7 +613,7 @@ export default function GamePage() {
                 top: selectionBox.y,
                 width: selectionBox.width,
                 height: selectionBox.height,
-                border: '2px dashed #1e40af', // bounding box border color
+                border: '1px dashed rgba(200,148,26,0.45)',
                 pointerEvents: 'none',
               }}
             />

@@ -1,31 +1,55 @@
 @import 'tailwindcss';
 
+/* ─── Design System ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink:    #0d0a06;
+  --press:  #1a1408;
+  --type:   #2c2418;
+  --case:   #3d3220;
+  --rule:   #5a4830;
+  --muted:  #7a6a54;
+  --aged:   #a89878;
+  --parch:  #c9b08a;
+  --cream:  #f0e6ce;
+  --brass:  #c8941a;
+  --gold:   #d4a830;
+  --vermil: #b84020;
+  --verdig: #3a6a48;
+  --tile-bg: #f2e4c4;
+  --tile-border: #7a5c1e;
+  --tile-shadow: #3a2c0e;
 }
-
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink:    var(--ink);
+  --color-press:  var(--press);
+  --color-type:   var(--type);
+  --color-case:   var(--case);
+  --color-rule:   var(--rule);
+  --color-muted:  var(--muted);
+  --color-aged:   var(--aged);
+  --color-parch:  var(--parch);
+  --color-cream:  var(--cream);
+  --color-brass:  var(--brass);
+  --color-gold:   var(--gold);
+  --color-vermil: var(--vermil);
+  --color-verdig: var(--verdig);
+
+  --font-cinzel:  var(--font-cinzel-display);
+  --font-crimson: var(--font-crimson-body);
+  --font-courier: var(--font-courier-prime);
+  --font-sans:    var(--font-geist-sans);
+  --font-mono:    var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ─── Base ─── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-crimson-body), Georgia, serif;
 }
 
+/* ─── Grid ─── */
 .grid-cols-25 {
   grid-template-columns: repeat(25, minmax(0, 1fr));
 }
@@ -34,17 +58,195 @@ body {
   aspect-ratio: 1 / 1;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* ─── Background dot-grid texture ─── */
+.bg-dot-texture {
+  background-image: radial-gradient(circle, rgba(200, 148, 26, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-out;
+/* ─── Tile letterpress shadow ─── */
+.tile-shadow {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.tile-shadow-selected {
+  box-shadow:
+    0 0 0 2px var(--brass),
+    0 0 12px rgba(200, 148, 26, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22);
+}
+
+.tile-shadow-invalid {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    0 0 8px rgba(184, 64, 32, 0.4);
+}
+
+/* ─── Staggered reveal animations ─── */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes reveal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes float-tile {
+  0%, 100% { transform: translateY(0px) rotate(var(--tile-rotate, 0deg)); }
+  50%       { transform: translateY(-6px) rotate(var(--tile-rotate, 0deg)); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+
+.reveal-1 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.05s; }
+.reveal-2 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.2s; }
+.reveal-3 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.35s; }
+.reveal-4 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.5s; }
+.reveal-5 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.65s; }
+.reveal-6 { animation: reveal-up 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.8s; }
+
+.float-tile {
+  animation: float-tile 4s ease-in-out infinite;
+}
+
+/* ─── Ornamental rules ─── */
+.rule-ornament {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--brass);
+}
+
+.rule-ornament::before,
+.rule-ornament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--rule), transparent);
+}
+
+/* ─── Press button style ─── */
+.btn-press {
+  position: relative;
+  background: var(--brass);
+  color: var(--ink);
+  font-family: var(--font-cinzel-display), serif;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 3px 0 #7a5c1e, 0 4px 8px rgba(0,0,0,0.5);
+  user-select: none;
+}
+
+.btn-press:hover:not(:disabled) {
+  background: var(--gold);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #7a5c1e, 0 6px 12px rgba(0,0,0,0.5);
+}
+
+.btn-press:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #7a5c1e, 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.btn-press:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--brass);
+  font-family: var(--font-cinzel-display), serif;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(200, 148, 26, 0.45);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--brass);
+  background: rgba(200, 148, 26, 0.08);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ─── Card surfaces ─── */
+.card-press {
+  background: var(--press);
+  border: 1px solid var(--case);
+  transition: border-color 0.2s ease;
+}
+
+.card-press:hover {
+  border-color: rgba(200, 148, 26, 0.35);
+}
+
+/* ─── Input ─── */
+.input-press {
+  background: var(--ink);
+  border: 1px solid var(--case);
+  color: var(--cream);
+  font-family: var(--font-crimson-body), serif;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+
+.input-press:focus {
+  border-color: var(--brass);
+}
+
+.input-press::placeholder {
+  color: var(--muted);
+}
+
+/* ─── PIN input ─── */
+.pin-input {
+  background: var(--ink);
+  border: 1px solid var(--case);
+  color: var(--cream);
+  font-family: var(--font-courier-prime), monospace;
+  text-align: center;
+  font-size: 2rem;
+  letter-spacing: 0.8em;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+
+.pin-input:focus {
+  border-color: var(--brass);
+}
+
+.pin-input::placeholder {
+  letter-spacing: 0.5em;
+  color: var(--rule);
 }

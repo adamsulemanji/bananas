@@ -18,10 +18,10 @@ export default function GridTile({ id, content, isSelected, isGhost, isInvalidWo
     data: { overlayTile: !!style },
   });
 
-  const baseStyle =
+  const dragTransform =
     transform && !style
       ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0) ${isDragging ? 'scale(1.08)' : ''}`,
           zIndex: isDragging ? 1000 : isSelected ? 900 : 1,
           transition: isDragging ? undefined : 'transform 0.2s ease',
           position: isDragging ? ('relative' as const) : undefined,
@@ -30,24 +30,60 @@ export default function GridTile({ id, content, isSelected, isGhost, isInvalidWo
         ? { zIndex: 900 }
         : {};
 
-  const mergedStyle = { ...baseStyle, ...style };
+  const tileStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '2px',
+    border: `1px solid ${
+      isInvalidWord
+        ? '#b84020'
+        : isSelected && !isDragging
+          ? 'var(--brass)'
+          : 'var(--tile-border)'
+    }`,
+    background: isInvalidWord
+      ? '#3d1008'
+      : isSelected && !isDragging
+        ? 'rgba(200,148,26,0.18)'
+        : 'var(--tile-bg)',
+    boxShadow: isSelected && !isDragging
+      ? '0 0 0 2px var(--brass), 0 0 10px rgba(200,148,26,0.28), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.2)'
+      : isInvalidWord
+        ? 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -2px 0 rgba(0,0,0,0.25), 0 0 8px rgba(184,64,32,0.35)'
+        : isDragging
+          ? 'inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 24px rgba(0,0,0,0.75)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 0 rgba(0,0,0,0.22), 0 2px 5px rgba(0,0,0,0.5)',
+    opacity: isGhost ? 0.3 : isDragging ? 0.8 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    transition: 'box-shadow 0.15s, background 0.15s',
+    ...style,
+    ...dragTransform,
+  };
 
   return (
     <div
       ref={setNodeRef}
-      style={mergedStyle}
+      style={tileStyle}
       {...listeners}
       {...attributes}
       data-draggable-tile="true"
-      className={`w-full h-full border rounded-sm shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing font-semibold text-sm
-                  ${isDragging ? 'opacity-80 shadow-lg border-yellow-700' : isInvalidWord ? 'border-red-500' : 'border-yellow-700'}
-                  ${isSelected && !isDragging ? 'bg-blue-200 border-blue-500' : isInvalidWord ? 'bg-red-100' : 'bg-yellow-100'}
-                  ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
-                  ${isGhost ? 'opacity-30' : ''}`}
     >
-      <div className="relative w-full h-full flex items-center justify-center select-none">
-        <span className={`text-center ${isInvalidWord ? 'text-red-700' : 'text-black'}`}>{content.toUpperCase()}</span>
-      </div>
+      <span
+        style={{
+          fontFamily: 'var(--font-courier-prime), "Courier New", monospace',
+          fontWeight: 700,
+          fontSize: '0.8rem',
+          lineHeight: 1,
+          color: isInvalidWord ? '#f87171' : 'var(--ink)',
+          userSelect: 'none',
+          letterSpacing: '0.02em',
+        }}
+      >
+        {content.toUpperCase()}
+      </span>
     </div>
   );
 }

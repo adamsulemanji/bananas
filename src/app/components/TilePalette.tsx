@@ -13,21 +13,31 @@ interface TilePaletteProps {
 }
 
 function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }: TilePaletteProps) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: 'tile-palette',
-  });
+  const { isOver, setNodeRef } = useDroppable({ id: 'tile-palette' });
 
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col gap-2 p-3 border border-amber-800 rounded-md mb-4 bg-amber-50 relative z-10 ${isOver ? 'bg-amber-200 border-amber-500' : ''}`}
+      className="flex flex-col gap-2 p-3 mb-4 relative z-10 transition-all duration-200"
+      style={{
+        background: isOver ? 'rgba(200,148,26,0.07)' : 'var(--press)',
+        border: `1px solid ${isOver ? 'rgba(200,148,26,0.45)' : 'var(--case)'}`,
+      }}
     >
-      <h2 className="font-semibold text-black text-sm flex justify-between items-center">
-        <span>Your Tiles</span>
-        <span className="text-xs text-amber-700 italic">
-          {isOver ? 'Release to add tile' : 'Drag tiles here to return them'}
+      <div className="flex justify-between items-center">
+        <h2
+          className="text-xs tracking-[0.35em] uppercase"
+          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
+        >
+          Your Tiles
+        </h2>
+        <span
+          className="text-xs italic"
+          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)' }}
+        >
+          {isOver ? 'Release to return tile' : `${playerHand.length} in hand · ${remainingTiles} in bunch`}
         </span>
-      </h2>
+      </div>
       <div className="flex flex-wrap gap-1">
         {playerHand.map((tile) => (
           <div key={tile.id} className="w-8 h-8 relative">
@@ -35,14 +45,14 @@ function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }:
           </div>
         ))}
       </div>
-      <div className="flex justify-between items-center mt-1">
-        <div className="text-xs text-gray-500">{remainingTiles} tiles remaining in bunch</div>
-      </div>
-      <div className="text-xs text-gray-700 text-right mt-1">
-        {playerHand.length === 0 && remainingTiles > 0
-          ? 'Drawing 3 more tiles...'
-          : `${playerHand.length} tiles in hand`}
-      </div>
+      {playerHand.length === 0 && remainingTiles > 0 && (
+        <p
+          className="text-xs italic text-center py-1"
+          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
+        >
+          Drawing tiles...
+        </p>
+      )}
     </div>
   );
 }
