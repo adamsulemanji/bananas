@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Add swap if not already present — t4g.nano has only 512MB RAM, npm ci OOMs without it
+if [ ! -f /swapfile ]; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+fi
+
 cd /home/ec2-user/app
 
 # Deploy nginx config and reload
