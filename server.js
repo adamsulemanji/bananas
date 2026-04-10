@@ -18,7 +18,7 @@ let globalTileIdCounter = 0;
 
 // Helper to generate unique tile ID
 function generateTileId(prefix = 'tile') {
-  return `${prefix}-${Date.now()}-${globalTileIdCounter++}-${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}-${Date.now()}-${globalTileIdCounter++}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 // Helper to generate 4-digit PIN
@@ -133,7 +133,7 @@ app.prepare().then(() => {
     // Create a new game room
     socket.on('createRoom', (playerName, callback) => {
       const pin = generatePin();
-      const gameId = `game-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const gameId = `game-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
       const room = {
         id: gameId,
@@ -286,7 +286,7 @@ app.prepare().then(() => {
       // Distribute initial tiles to players
       const tilesPerPlayer = getInitialTilesPerPlayer(room.players.length);
 
-      room.players.forEach((player, playerIndex) => {
+      room.players.forEach((player) => {
         player.tiles = [];
         for (let i = 0; i < tilesPerPlayer; i++) {
           if (room.letterBag.length > 0) {
