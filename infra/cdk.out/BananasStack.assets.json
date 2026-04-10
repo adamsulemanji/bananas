@@ -1,0 +1,36 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6": {
+      "displayName": "BananasStack/Custom::S3AutoDeleteObjectsCustomResourceProvider Code",
+      "source": {
+        "path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "869935106890-us-east-1-6b096806": {
+          "bucketName": "cdk-hnb659fds-assets-869935106890-us-east-1",
+          "objectKey": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::869935106890:role/cdk-hnb659fds-file-publishing-role-869935106890-us-east-1"
+        }
+      }
+    },
+    "fbaab8698e44f6dedde8c6e05cbb1f1893b514b8a2f60fb25c713b365dd8856a": {
+      "displayName": "BananasStack Template",
+      "source": {
+        "path": "BananasStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "869935106890-us-east-1-a4717621": {
+          "bucketName": "cdk-hnb659fds-assets-869935106890-us-east-1",
+          "objectKey": "fbaab8698e44f6dedde8c6e05cbb1f1893b514b8a2f60fb25c713b365dd8856a.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::869935106890:role/cdk-hnb659fds-file-publishing-role-869935106890-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

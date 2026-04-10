@@ -1,0 +1,271 @@
+{
+  "/BananasStack/SsmParameterValue:--aws--service--ami-amazon-linux-latest--al2023-ami-kernel-6.1-arm64:C96584B6-F00A-464E-AD19-53AFF4B05118.Parameter": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61arm64C96584B6F00A464EAD1953AFF4B05118Parameter"
+    }
+  ],
+  "/BananasStack/EIP": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EIP"
+    }
+  ],
+  "/BananasStack/EIPAssoc": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EIPAssoc"
+    }
+  ],
+  "/BananasStack/AWSCloudFrontPartitionHostedZoneIdMap": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AWSCloudFrontPartitionHostedZoneIdMap"
+    }
+  ],
+  "/BananasStack/Custom::S3AutoDeleteObjectsCustomResourceProvider": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+      "data": true
+    }
+  ],
+  "/BananasStack/Pipeline": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "V1 pipeline type is implicitly selected when `pipelineType` is not set. If you want to use V2 type, set `PipelineType.V2`. [ack: @aws-cdk/aws-codepipeline:unspecifiedPipelineType]",
+      "trace": [
+        "Annotations.addMessage (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new Pipeline2 (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/aws-cdk-lib/aws-codepipeline/lib/pipeline.js:1:13428)",
+        "new Pipeline2 (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "new BananasStack (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/lib/bananas-stack.ts:176:5)",
+        "Object.<anonymous> (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/bin/app.ts:7:1)",
+        "Module._compile (node:internal/modules/cjs/loader:1554:14)",
+        "Module.m._compile (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/index.ts:1618:23)",
+        "node:internal/modules/cjs/loader:1706:10",
+        "Object.require.extensions.<computed> [as .ts] (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/index.ts:1621:12)",
+        "Module.load (node:internal/modules/cjs/loader:1289:32)",
+        "Function._load (node:internal/modules/cjs/loader:1108:12)",
+        "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+        "wrapModuleLoad (node:internal/modules/cjs/loader:220:24)",
+        "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)",
+        "phase4 (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/bin.ts:649:14)",
+        "bootstrap (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/bin.ts:95:10)",
+        "main (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/bin.ts:55:10)",
+        "Object.<anonymous> (/Users/adamsulemanji/Desktop/College/PROJECTS/bananas/infra/node_modules/ts-node/src/bin.ts:800:3)",
+        "Module._compile (node:internal/modules/cjs/loader:1554:14)",
+        "Object.<anonymous> (node:internal/modules/cjs/loader:1706:10)",
+        "Module.load (node:internal/modules/cjs/loader:1289:32)",
+        "Function._load (node:internal/modules/cjs/loader:1108:12)",
+        "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+        "wrapModuleLoad (node:internal/modules/cjs/loader:220:24)",
+        "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)",
+        "node:internal/main/run_main_module:36:49"
+      ]
+    }
+  ],
+  "/BananasStack/URL": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "URL"
+    }
+  ],
+  "/BananasStack/SSMConnect": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SSMConnect"
+    }
+  ],
+  "/BananasStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/BananasStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/BananasStack/SG/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SGADB53937"
+    }
+  ],
+  "/BananasStack/InstanceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceRole3CCE2F1D"
+    }
+  ],
+  "/BananasStack/Instance/InstanceProfile": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceInstanceProfileAB5AEF02"
+    }
+  ],
+  "/BananasStack/Instance/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "InstanceC1063A87"
+    }
+  ],
+  "/BananasStack/Certificate/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Certificate4E7ABB08"
+    }
+  ],
+  "/BananasStack/EC2ARecord/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "EC2ARecord470D3B73"
+    }
+  ],
+  "/BananasStack/Distribution/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Distribution830FAC52"
+    }
+  ],
+  "/BananasStack/ARecord/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ARecordE7B57761"
+    }
+  ],
+  "/BananasStack/DeployApp/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DeployAppC303E97E"
+    }
+  ],
+  "/BananasStack/DeployGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DeployGroup53877957"
+    }
+  ],
+  "/BananasStack/Artifacts/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Artifacts82DD59A1"
+    },
+    {
+      "type": "aws:cdk:analytics:mixin",
+      "data": {
+        "mixin": "aws-cdk-lib.aws_s3.mixins.BucketAutoDeleteObjects"
+      }
+    }
+  ],
+  "/BananasStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+    }
+  ],
+  "/BananasStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F"
+    }
+  ],
+  "/BananasStack/Builder/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BuilderB630A0FA"
+    }
+  ],
+  "/BananasStack/Pipeline/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineC660917D"
+    }
+  ],
+  "/BananasStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/BananasStack/DeployGroup/Role/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DeployGroupRole20B09541"
+    }
+  ],
+  "/BananasStack/Artifacts/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ArtifactsPolicy6E9058CC"
+    },
+    {
+      "type": "aws:cdk:analytics:mixin",
+      "data": {
+        "mixin": "aws-cdk-lib.aws_s3.mixins.BucketPolicyStatements"
+      }
+    }
+  ],
+  "/BananasStack/Artifacts/AutoDeleteObjectsCustomResource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ArtifactsAutoDeleteObjectsCustomResource0E8CD7FC"
+    }
+  ],
+  "/BananasStack/Builder/Role/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BuilderRole50DE68B6"
+    }
+  ],
+  "/BananasStack/Pipeline/Role/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineRoleD68726F7"
+    }
+  ],
+  "/BananasStack/Builder/Role/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BuilderRoleDefaultPolicy5040CB6E"
+    }
+  ],
+  "/BananasStack/Pipeline/Role/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineRoleDefaultPolicyC7A05455"
+    }
+  ],
+  "/BananasStack/Pipeline/Source/GitHub/WebhookResource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineSourceGitHubWebhookResource60875CAB"
+    }
+  ],
+  "/BananasStack/Pipeline/Build/Build/CodePipelineActionRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineBuildCodePipelineActionRoleD77A08E6"
+    }
+  ],
+  "/BananasStack/Pipeline/Deploy/Deploy/CodePipelineActionRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineDeployCodePipelineActionRole8B83082E"
+    }
+  ],
+  "/BananasStack/Pipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8"
+    }
+  ],
+  "/BananasStack/Pipeline/Deploy/Deploy/CodePipelineActionRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PipelineDeployCodePipelineActionRoleDefaultPolicyEE6D615B"
+    }
+  ]
+}

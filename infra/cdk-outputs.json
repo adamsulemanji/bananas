@@ -1,0 +1,6 @@
+{
+  "BananasStack": {
+    "SSMConnect": "aws ssm start-session --target i-0956abfdc37763522",
+    "URL": "https://bananas.adamsulemanji.com"
+  }
+}

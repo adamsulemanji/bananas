@@ -742,10 +742,11 @@ function MultiplayerGameContent() {
                 )}
               </div>
             </div>
+
+            {/* Dump area — drag a hand tile here to discard it for 3 new ones */}
+            <TrashArea />
           </div>
         </div>
-
-        <TrashArea />
         <DragOverlay dropAnimation={null}>
           {activeDragData
             ? (() => {
@@ -870,15 +871,14 @@ function MultiplayerGameContent() {
         </DragOverlay>
       </DndContext>
 
-      <div className="mt-4 text-xs text-gray-600 text-center space-y-1">
-        {selectedTileIds.length > 0 && (
+      {selectedTileIds.length > 0 && (
+        <div className="mt-4 text-xs text-gray-600 text-center">
           <p>
             Selected {selectedTileIds.length} tiles. Drag any selected tile to move all together.
             Press T to transpose.
           </p>
-        )}
-        <p>Drag tiles from your hand to the trash area to dump them for 3 new ones.</p>
-      </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -1,0 +1,56 @@
+{
+  "vpc-provider:account=869935106890:filter.isDefault=true:region=us-east-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0f2af80b618dbc885",
+    "vpcCidrBlock": "172.31.0.0/16",
+    "ownerAccountId": "869935106890",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "Public",
+        "type": "Public",
+        "subnets": [
+          {
+            "subnetId": "subnet-0dbb0f5a5a454b36f",
+            "cidr": "172.31.16.0/20",
+            "availabilityZone": "us-east-1a",
+            "routeTableId": "rtb-05fd849e82d155386"
+          },
+          {
+            "subnetId": "subnet-0b3db98695406ff33",
+            "cidr": "172.31.32.0/20",
+            "availabilityZone": "us-east-1b",
+            "routeTableId": "rtb-05fd849e82d155386"
+          },
+          {
+            "subnetId": "subnet-0e210b5f1710b2171",
+            "cidr": "172.31.0.0/20",
+            "availabilityZone": "us-east-1c",
+            "routeTableId": "rtb-05fd849e82d155386"
+          },
+          {
+            "subnetId": "subnet-025596f955ccdaf07",
+            "cidr": "172.31.80.0/20",
+            "availabilityZone": "us-east-1d",
+            "routeTableId": "rtb-05fd849e82d155386"
+          },
+          {
+            "subnetId": "subnet-017e85470f483f5ca",
+            "cidr": "172.31.48.0/20",
+            "availabilityZone": "us-east-1e",
+            "routeTableId": "rtb-05fd849e82d155386"
+          },
+          {
+            "subnetId": "subnet-06ef3ba7c95d27a21",
+            "cidr": "172.31.64.0/20",
+            "availabilityZone": "us-east-1f",
+            "routeTableId": "rtb-05fd849e82d155386"
+          }
+        ]
+      }
+    ]
+  },
+  "hosted-zone:account=869935106890:domainName=adamsulemanji.com:region=us-east-1": {
+    "Id": "/hostedzone/Z00592542LWQ70ZM4V3HA",
+    "Name": "adamsulemanji.com."
+  }
+}
