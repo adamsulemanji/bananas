@@ -41,7 +41,7 @@ export class BananasStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
-        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonEC2RoleforAWSCodeDeploy'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2RoleforAWSCodeDeploy'),
       ],
     });
 
@@ -83,7 +83,7 @@ export class BananasStack extends cdk.Stack {
     const eip = new ec2.CfnEIP(this, 'EIP');
     new ec2.CfnEIPAssociation(this, 'EIPAssoc', {
       instanceId: instance.instanceId,
-      eip: eip.ref,
+      allocationId: eip.attrAllocationId,
     });
 
     // ── DNS + HTTPS ───────────────────────────────────────────────────────
@@ -99,14 +99,22 @@ export class BananasStack extends cdk.Stack {
       validation: acm.CertificateValidation.fromDns(zone),
     });
 
-    // ── CloudFront ────────────────────────────────────────────────────────
+    // ── DNS + CloudFront ──────────────────────────────────────────────────
+
+    // CloudFront can't use a raw IP as an origin — create a DNS name for EC2 first
+    const ec2Record = new route53.ARecord(this, 'EC2ARecord', {
+      zone,
+      recordName: `ec2.${SUBDOMAIN}`,
+      target: route53.RecordTarget.fromIpAddresses(eip.ref),
+    });
+    const ec2Origin = `ec2.${DOMAIN}`;
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       domainNames: [DOMAIN],
       certificate,
       defaultBehavior: {
-        // CloudFront talks to EC2 over plain HTTP on port 80
-        origin: new origins.HttpOrigin(eip.ref, {
+        // CloudFront talks to EC2 over plain HTTP on port 80 via DNS name
+        origin: new origins.HttpOrigin(ec2Origin, {
           protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -118,6 +126,8 @@ export class BananasStack extends cdk.Stack {
         originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
       },
     });
+    // Ensure EC2 DNS record exists before CloudFront tries to use it
+    distribution.node.addDependency(ec2Record);
 
     // bananas.adamsulemanji.com → CloudFront (same pattern as your personal site)
     new route53.ARecord(this, 'ARecord', {
