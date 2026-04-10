@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm ci
+
+  build:
+    commands:
+      - npm run build
+
+artifacts:
+  files:
+    - "**/*"
+  exclude-paths:
+    # Reinstalled on EC2 in install_deps.sh — don't bloat the artifact
+    - "node_modules/**"
+    - ".git/**"
+    - "infra/**"
+    # Skip Next.js build cache (large, not needed at runtime)
+    - ".next/cache/**"

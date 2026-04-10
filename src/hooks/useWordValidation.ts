@@ -39,7 +39,6 @@ export function useWordValidation() {
 
   // Validate board function
   const validateBoard = useCallback(async (tiles: BoardTile[]): Promise<ValidationResult> => {
-    // No tiles: trivially valid
     if (tiles.length === 0) {
       return {
         isValid: true,
@@ -53,28 +52,39 @@ export function useWordValidation() {
       };
     }
 
+    // Compute structure regardless of dictionary readiness
+    const extractedWords = extractWordsFromBoard(tiles);
+    const isConnected = areAllTilesConnected(tiles);
+    const isolatedTiles = getIsolatedTiles(tiles);
+
+    // If not initialized, return early with partial validation
+    if (!isInitialized) {
+      return {
+        isValid: false,
+        allWords: extractedWords,
+        validWords: [],
+        invalidWords: [],
+        isolatedTiles,
+        isConnected,
+        isLoading: true,
+        error: 'Dictionary is still loading...',
+      };
+    }
+
+    let validWords: ExtractedWord[] = [];
+    let invalidWords: ExtractedWord[] = [];
+
     try {
-      // Always compute structure regardless of dictionary readiness
-      const extractedWords = extractWordsFromBoard(tiles);
-      const isConnected = areAllTilesConnected(tiles);
-      const isolatedTiles = getIsolatedTiles(tiles);
-
-      let validWords: ExtractedWord[] = [];
-      let invalidWords: ExtractedWord[] = [];
-
-      if (isInitialized) {
-        extractedWords.forEach((wordData) => {
-          if (wordValidator.isValidWord(wordData.word)) {
-            validWords.push(wordData);
-          } else {
-            invalidWords.push(wordData);
-          }
-        });
-      }
+      extractedWords.forEach((wordData) => {
+        if (wordValidator.isValidWord(wordData.word)) {
+          validWords.push(wordData);
+        } else {
+          invalidWords.push(wordData);
+        }
+      });
 
       // Board can only be fully valid if dictionary initialized and all checks pass
       const isValid =
-        isInitialized &&
         isConnected &&
         isolatedTiles.length === 0 &&
         invalidWords.length === 0 &&
@@ -82,13 +92,7 @@ export function useWordValidation() {
 
       return {
         isValid,
-        allWords: extractedWords,
-        validWords,
-        invalidWords,
-        isolatedTiles,
-        isConnected,
-        isLoading: !isInitialized,
-        error: !isInitialized ? 'Dictionary is still loading...' : null,
+        allWords: extractedWords, validWords, invalidWords, isolatedTiles, isConnected, isLoading: false, error: null
       };
     } catch (error) {
       return {
@@ -102,6 +106,7 @@ export function useWordValidation() {
         error: error instanceof Error ? error.message : 'Validation failed',
       };
     }
+
   }, [isInitialized]);
 
   // Quick validation for a single word

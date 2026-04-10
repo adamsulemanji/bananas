@@ -141,7 +141,8 @@ export function useDragDrop({
 
       // Notify server about board update for multiplayer sync
       if (onBoardUpdate && getCurrentBoardTiles) {
-        onBoardUpdate(getCurrentBoardTiles());
+        const updatedTiles = [...getCurrentBoardTiles(), newBoardTile];
+        onBoardUpdate(updatedTiles);
       }
       return;
     }
@@ -160,24 +161,25 @@ export function useDragDrop({
         const rowOffset = destRow - originRow;
         const colOffset = destCol - originCol;
 
+        const selectedTiles = selectedTileIds
+          .map((tileId) => getBoardTile(tileId))
+          .filter((tile): tile is BoardTile => tile !== undefined);
+
+        if (selectedTiles.length !== selectedTileIds.length) {
+          return;
+        }
+
         // First check if all destination positions are valid and unoccupied
         // (excluding positions of selected tiles as they will be moved)
         const newPositions = new Map<string, string>(); // tileId -> new position
         let canMove = true;
 
         // Create a set of current positions of selected tiles for faster lookup
-        const selectedPositions = new Set<string>();
-        selectedTileIds.forEach((tileId) => {
-          const tile = getBoardTile(tileId);
-          if (tile) {
-            selectedPositions.add(tile.position);
-          }
-        });
+        const selectedPositions = new Set<string>(
+          selectedTiles.map((tile) => tile.position)
+        );
 
-        selectedTileIds.forEach((tileId) => {
-          const tile = getBoardTile(tileId);
-          if (!tile) return;
-
+        selectedTiles.forEach((tile) => {
           const [tileRow, tileCol] = getCellIndices(tile.position);
           const newRow = tileRow + rowOffset;
           const newCol = tileCol + colOffset;
@@ -201,26 +203,25 @@ export function useDragDrop({
             return;
           }
 
-          newPositions.set(tileId, newCellId);
+          newPositions.set(tile.id, newCellId);
         });
 
         if (!canMove) return;
 
         // Apply all movements at once
         updateTilePositions((prevTiles) => {
-          return prevTiles.map((tile) => {
+          const updatedTiles = prevTiles.map((tile) => {
             const newPosition = newPositions.get(tile.id);
             if (newPosition) {
               return { ...tile, position: newPosition };
             }
             return tile;
           });
+          if (onBoardUpdate) {
+            onBoardUpdate(updatedTiles);
+          }
+          return updatedTiles;
         });
-
-        // Notify server about board update for multiplayer sync
-        if (onBoardUpdate && getCurrentBoardTiles) {
-          onBoardUpdate(getCurrentBoardTiles());
-        }
 
         // Note: For multi-tile board movements, we don't need to update hand size
         // as tiles are just moving positions on the board
@@ -237,28 +238,35 @@ export function useDragDrop({
         if (tileAtDestination) {
           // Destination cell is occupied by another tile, swap them
           updateTilePositions((prevTiles) =>
-            prevTiles.map((t) => {
-              if (t.id === tileFromBoard.id) {
-                return { ...t, position: destinationCellId };
+            {
+              const updatedTiles = prevTiles.map((t) => {
+                if (t.id === tileFromBoard.id) {
+                  return { ...t, position: destinationCellId };
+                }
+                if (t.id === tileAtDestination.id) {
+                  return { ...t, position: originCellId };
+                }
+                return t;
+              });
+              if (onBoardUpdate) {
+                onBoardUpdate(updatedTiles);
               }
-              if (t.id === tileAtDestination.id) {
-                return { ...t, position: originCellId };
-              }
-              return t;
-            })
+              return updatedTiles;
+            }
           );
         } else {
           // Destination cell is empty, just move the tile
           updateTilePositions((prevTiles) =>
-            prevTiles.map((t) =>
-              t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
-            )
+            {
+              const updatedTiles = prevTiles.map((t) =>
+                t.id === tileFromBoard.id ? { ...t, position: destinationCellId } : t
+              );
+              if (onBoardUpdate) {
+                onBoardUpdate(updatedTiles);
+              }
+              return updatedTiles;
+            }
           );
-        }
-
-        // Notify server about board update for multiplayer sync
-        if (onBoardUpdate && getCurrentBoardTiles) {
-          onBoardUpdate(getCurrentBoardTiles());
         }
       }
       return;

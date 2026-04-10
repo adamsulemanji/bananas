@@ -4,7 +4,7 @@ export interface LetterDistributionItem {
 }
 
 export const INITIAL_LETTER_DISTRIBUTION: LetterDistributionItem[] = [
-  // { letter: 'A', count: 13 },
+  { letter: 'A', count: 13 },
   { letter: 'B', count: 3 },
   { letter: 'C', count: 3 },
   { letter: 'D', count: 6 },

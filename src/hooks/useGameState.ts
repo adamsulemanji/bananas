@@ -41,16 +41,6 @@ export function useGameState() {
     }
   }, []);
 
-  // Automatically draw 3 more tiles when player's hand is empty
-  useEffect(() => {
-    if (!isInitializedRef.current) return;
-
-    const remainingCount = letterBag.reduce((sum, item) => sum + item.count, 0);
-    if (playerHand.length === 0 && remainingCount > 0 && tiles.length > 0) {
-      drawTiles(3);
-    }
-  }, [playerHand.length, letterBag, tiles.length]);
-
   // Draw random tiles from the bag
   const drawTiles = (count: number) => {
     const updatedBag = [...letterBag];

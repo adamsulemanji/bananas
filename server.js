@@ -51,6 +51,76 @@ app.prepare().then(() => {
     },
   });
 
+  const getPlayerHandTiles = (player) => {
+    const boardTiles = player.boardTiles || [];
+    if (!player.tiles) return [];
+    if (boardTiles.length === 0) return player.tiles;
+
+    const boardTileIds = new Set(boardTiles.map((tile) => tile.id));
+    return player.tiles.filter((tile) => !boardTileIds.has(tile.id));
+  };
+
+  const buildPlayersView = (room, viewerId) => {
+    return room.players.map((player) => {
+      const boardTiles = player.boardTiles || [];
+      const handTiles = getPlayerHandTiles(player);
+
+      return {
+        id: player.id,
+        name: player.name,
+        isHost: player.isHost,
+        isReady: player.isReady,
+        handSize: handTiles.length,
+        boardSize: boardTiles.length,
+        tiles: player.id === viewerId ? handTiles : [],
+        boardTiles: player.id === viewerId ? boardTiles : [],
+      };
+    });
+  };
+
+  const buildRoomView = (room, viewerId) => {
+    return {
+      ...room,
+      players: buildPlayersView(room, viewerId),
+    };
+  };
+
+  const emitRoomUpdate = (room) => {
+    room.players.forEach((player) => {
+      io.to(player.id).emit('roomUpdate', buildRoomView(room, player.id));
+    });
+  };
+
+  const emitGameStart = (room) => {
+    room.players.forEach((player) => {
+      io.to(player.id).emit('gameStart', {
+        players: buildPlayersView(room, player.id),
+        remainingTiles: room.letterBag.length,
+      });
+    });
+  };
+
+  const emitPeelCalled = (room, callerName, isLastRound) => {
+    room.players.forEach((player) => {
+      io.to(player.id).emit('peelCalled', {
+        callerName,
+        players: buildPlayersView(room, player.id),
+        remainingTiles: room.letterBag.length,
+        isLastRound,
+      });
+    });
+  };
+
+  const emitPlayerLeft = (room, playerId, playerName) => {
+    room.players.forEach((player) => {
+      io.to(player.id).emit('playerLeft', {
+        playerId,
+        playerName,
+        room: buildRoomView(room, player.id),
+      });
+    });
+  };
+
   io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
@@ -86,21 +156,8 @@ app.prepare().then(() => {
 
       callback({ success: true, pin, gameId });
 
-      // Send updated room info
-      io.to(gameId).emit('roomUpdate', {
-        ...room,
-        players: room.players.map((p) => ({
-          ...p,
-          // Include tiles in hand count
-          handSize: p.tiles
-            ? p.tiles.filter(
-                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-              ).length
-            : 0,
-          // Include board tiles count
-          boardSize: p.boardTiles ? p.boardTiles.length : 0,
-        })),
-      });
+      // Send updated room info (scoped per player)
+      emitRoomUpdate(room);
     });
 
     // Join an existing room
@@ -139,19 +196,8 @@ app.prepare().then(() => {
 
       callback({ success: true, gameId: room.id });
 
-      // Notify all players in room
-      io.to(room.id).emit('roomUpdate', {
-        ...room,
-        players: room.players.map((p) => ({
-          ...p,
-          handSize: p.tiles
-            ? p.tiles.filter(
-                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-              ).length
-            : 0,
-          boardSize: p.boardTiles ? p.boardTiles.length : 0,
-        })),
-      });
+      // Notify all players in room (scoped per player)
+      emitRoomUpdate(room);
     });
 
     // Player ready status
@@ -164,18 +210,7 @@ app.prepare().then(() => {
       const player = room.players.find((p) => p.id === socket.id);
       if (player) {
         player.isReady = !player.isReady;
-        io.to(room.id).emit('roomUpdate', {
-          ...room,
-          players: room.players.map((p) => ({
-            ...p,
-            handSize: p.tiles
-              ? p.tiles.filter(
-                  (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-                ).length
-              : 0,
-            boardSize: p.boardTiles ? p.boardTiles.length : 0,
-          })),
-        });
+        emitRoomUpdate(room);
       }
     });
 
@@ -261,30 +296,12 @@ app.prepare().then(() => {
       room.gameState = 'playing';
       callback({ success: true });
 
-      // Send game start event with initial state FIRST
-      io.to(room.id).emit('gameStart', {
-        players: room.players.map((p) => ({
-          ...p,
-          // At game start, all tiles are in hand (boardTiles is undefined/empty)
-          tiles: p.tiles,
-        })),
-        remainingTiles: room.letterBag.length,
-      });
+      // Send game start event with initial state FIRST (scoped per player)
+      emitGameStart(room);
 
       // Send room update with playing state after a small delay
       setTimeout(() => {
-        io.to(room.id).emit('roomUpdate', {
-          ...room,
-          players: room.players.map((p) => ({
-            ...p,
-            handSize: p.tiles
-              ? p.tiles.filter(
-                  (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-                ).length
-              : 0,
-            boardSize: p.boardTiles ? p.boardTiles.length : 0,
-          })),
-        });
+        emitRoomUpdate(room);
       }, 200);
     });
 
@@ -340,34 +357,11 @@ app.prepare().then(() => {
 
       callback({ success: true, won: false });
 
-      // Notify all players
-      io.to(room.id).emit('peelCalled', {
-        callerName: player.name,
-        players: room.players.map((p) => ({
-          ...p,
-          // Only send tiles that are in hand (not on board)
-          tiles: p.tiles.filter(
-            (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-          ),
-          boardTiles: p.boardTiles || [],
-        })),
-        remainingTiles: room.letterBag.length,
-        isLastRound: isLastRound,
-      });
+      // Notify all players (scoped per player)
+      emitPeelCalled(room, player.name, isLastRound);
 
       // Send room update to update the sidebar
-      io.to(room.id).emit('roomUpdate', {
-        ...room,
-        players: room.players.map((p) => ({
-          ...p,
-          handSize: p.tiles
-            ? p.tiles.filter(
-                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-              ).length
-            : 0,
-          boardSize: p.boardTiles ? p.boardTiles.length : 0,
-        })),
-      });
+      emitRoomUpdate(room);
     });
 
     // Trade 1 tile for 3 (dump)
@@ -429,18 +423,7 @@ app.prepare().then(() => {
       });
 
       // Send room update to update the sidebar
-      io.to(room.id).emit('roomUpdate', {
-        ...room,
-        players: room.players.map((p) => ({
-          ...p,
-          handSize: p.tiles
-            ? p.tiles.filter(
-                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-              ).length
-            : 0,
-          boardSize: p.boardTiles ? p.boardTiles.length : 0,
-        })),
-      });
+      emitRoomUpdate(room);
     });
 
     // Update player's board state
@@ -464,7 +447,7 @@ app.prepare().then(() => {
       socket.to(room.id).emit('playerBoardUpdate', {
         playerId: socket.id,
         playerName: player.name,
-        boardTiles,
+        boardTiles: [],
         handSize,
         boardSize: boardTiles.length,
       });
@@ -530,6 +513,11 @@ app.prepare().then(() => {
       const room = gameRooms.get(pin);
 
       if (!room || room.gameState !== 'playing') return;
+
+      if (targetPlayerName !== socket.data.playerName) {
+        callback({ success: false, error: 'Not authorized to view other players' });
+        return;
+      }
 
       const targetPlayer = room.players.find((p) => p.name === targetPlayerName);
       if (!targetPlayer) {
@@ -610,18 +598,7 @@ app.prepare().then(() => {
       });
 
       // Send updated room info
-      io.to(room.id).emit('roomUpdate', {
-        ...room,
-        players: room.players.map((p) => ({
-          ...p,
-          handSize: p.tiles
-            ? p.tiles.filter(
-                (tile) => !p.boardTiles || !p.boardTiles.some((bt) => bt.id === tile.id)
-              ).length
-            : 0,
-          boardSize: p.boardTiles ? p.boardTiles.length : 0,
-        })),
-      });
+      emitRoomUpdate(room);
     });
 
     // Handle disconnect
@@ -649,11 +626,7 @@ app.prepare().then(() => {
       }
 
       // Notify remaining players
-      io.to(room.id).emit('playerLeft', {
-        playerId: socket.id,
-        playerName: socket.data.playerName,
-        room,
-      });
+      emitPlayerLeft(room, socket.id, socket.data.playerName);
     });
   });
 

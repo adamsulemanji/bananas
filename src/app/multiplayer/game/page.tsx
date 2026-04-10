@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useCallback, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams} from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -23,7 +23,7 @@ import { useMarqueeSelection, MarqueeRect } from '@/hooks/useMarqueeSelection';
 import { generateGridCellIds, transposeTiles } from '@/utils/gridUtils';
 import { GRID_SIZE } from '@/utils/config';
 import { BoardTile, PlayerTile } from '@/types/multiplayer';
-import { useSocket } from '@/contexts/SocketContext';
+import { useSocket} from '@/contexts/SocketContext';
 import { useWordValidation } from '@/hooks/useWordValidation';
 
 // Helper function (can be moved to utils if used elsewhere)
@@ -38,6 +38,10 @@ interface ActiveDragData {
   active: Active;
   cellWidth: number;
   cellHeight: number;
+  cellStepX: number;
+  cellStepY: number;
+  tileOffsetX: number;
+  tileOffsetY: number;
   initialSelectedTiles: BoardTile[]; // Store initial positions
   cursorOffset: { x: number; y: number }; // Store cursor offset from active tile
 }
@@ -387,9 +391,18 @@ function MultiplayerGameContent() {
       selectedTileIds.length > 0 &&
       gridRef.current
     ) {
-      const firstCell = gridRef.current.querySelector('#cell-0');
+      const firstCell = gridRef.current.querySelector<HTMLElement>('#cell-0');
       if (firstCell) {
         const cellRect = firstCell.getBoundingClientRect();
+        const nextCell = gridRef.current.querySelector<HTMLElement>('#cell-1');
+        const nextRowCell = gridRef.current.querySelector<HTMLElement>(`#cell-${GRID_SIZE}`);
+        const cellStepX = nextCell
+          ? nextCell.getBoundingClientRect().left - cellRect.left
+          : cellRect.width;
+        const cellStepY = nextRowCell
+          ? nextRowCell.getBoundingClientRect().top - cellRect.top
+          : cellRect.height;
+
         const initialSelectedBoardTiles = selectedTileIds
           .map((id) => gameState.getBoardTile(id))
           .filter((tile) => tile !== undefined) as BoardTile[];
@@ -397,19 +410,31 @@ function MultiplayerGameContent() {
         // Calculate cursor offset from the active tile
         const activeTile = gameState.getBoardTile(activeId);
         if (activeTile) {
-          const activeTileElement = document.getElementById(activeTile.position);
-          if (activeTileElement) {
-            const tileRect = activeTileElement.getBoundingClientRect();
+          const activeCellElement = document.getElementById(activeTile.position);
+          if (activeCellElement) {
+            const activeCellRect = activeCellElement.getBoundingClientRect();
+            const tileElement = activeCellElement.querySelector<HTMLElement>(
+              '[data-draggable-tile="true"]'
+            );
+            const tileRect = tileElement
+              ? tileElement.getBoundingClientRect()
+              : activeCellRect;
             const pointerEvent = event.activatorEvent as PointerEvent;
             const cursorOffset = {
               x: pointerEvent.clientX - tileRect.left,
               y: pointerEvent.clientY - tileRect.top,
             };
+            const tileOffsetX = tileRect.left - activeCellRect.left;
+            const tileOffsetY = tileRect.top - activeCellRect.top;
 
             setActiveDragData({
               active: event.active,
-              cellWidth: cellRect.width,
-              cellHeight: cellRect.height,
+              cellWidth: tileRect.width,
+              cellHeight: tileRect.height,
+              cellStepX,
+              cellStepY,
+              tileOffsetX,
+              tileOffsetY,
               initialSelectedTiles: initialSelectedBoardTiles,
               cursorOffset,
             });
@@ -422,6 +447,10 @@ function MultiplayerGameContent() {
         active: event.active,
         cellWidth: 50, // Default/approximate size for hand tiles
         cellHeight: 50,
+        cellStepX: 50,
+        cellStepY: 50,
+        tileOffsetX: 0,
+        tileOffsetY: 0,
         initialSelectedTiles: [], // No group for hand tiles in this context
         cursorOffset: { x: 25, y: 25 }, // Center by default
       });
@@ -705,7 +734,17 @@ function MultiplayerGameContent() {
         <DragOverlay dropAnimation={null}>
           {activeDragData
             ? (() => {
-                const { active, cellWidth, cellHeight, initialSelectedTiles, cursorOffset } =
+                const {
+                  active,
+                  cellWidth,
+                  cellHeight,
+                  cellStepX,
+                  cellStepY,
+                  tileOffsetX,
+                  tileOffsetY,
+                  initialSelectedTiles,
+                  cursorOffset,
+                } =
                   activeDragData;
                 const activeId = active.id as string;
 
@@ -742,12 +781,14 @@ function MultiplayerGameContent() {
                     maxRelCol = Math.max(maxRelCol, relCol);
                   });
 
-                  const containerWidth = (maxRelCol - minRelCol + 1) * cellWidth;
-                  const containerHeight = (maxRelRow - minRelRow + 1) * cellHeight;
+                  const containerWidth =
+                    (maxRelCol - minRelCol) * cellStepX + tileOffsetX + cellWidth;
+                  const containerHeight =
+                    (maxRelRow - minRelRow) * cellStepY + tileOffsetY + cellHeight;
 
                   // Adjust for cursor offset
-                  const offsetX = -cursorOffset.x + minRelCol * cellWidth;
-                  const offsetY = -cursorOffset.y + minRelRow * cellHeight;
+                  const offsetX = -cursorOffset.x + minRelCol * cellStepX - tileOffsetX;
+                  const offsetY = -cursorOffset.y + minRelRow * cellStepY - tileOffsetY;
 
                   const containerStyle: React.CSSProperties = {
                     width: containerWidth,
@@ -768,8 +809,8 @@ function MultiplayerGameContent() {
 
                         const tileStyle: React.CSSProperties = {
                           position: 'absolute',
-                          left: (relCol - minRelCol) * cellWidth,
-                          top: (relRow - minRelRow) * cellHeight,
+                          left: (relCol - minRelCol) * cellStepX + tileOffsetX,
+                          top: (relRow - minRelRow) * cellStepY + tileOffsetY,
                           width: cellWidth,
                           height: cellHeight,
                           boxSizing: 'border-box',

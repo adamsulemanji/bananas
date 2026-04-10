@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+import * as cdk from 'aws-cdk-lib';
+import { BananasStack } from '../lib/bananas-stack';
+
+const app = new cdk.App();
+
+new BananasStack(app, 'BananasStack', {
+  // Required for VPC lookup (fromLookup) to work
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION,
+  },
+});

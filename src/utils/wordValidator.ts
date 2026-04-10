@@ -1,10 +1,17 @@
 // Fast word validation using a local dictionary
+
+interface TrieNode {
+  children: Map<string, TrieNode>;
+  isWord: boolean;
+}
+
 export class WordValidator {
   private static instance: WordValidator | null = null;
   private wordSet: Set<string> = new Set();
   private initialized = false;
   private initPromise: Promise<void> | null = null;
 
+  private trieRoot: TrieNode = { children: new Map(), isWord: false };
   // Singleton pattern to ensure dictionary is loaded only once
   static getInstance(): WordValidator {
     if (!WordValidator.instance) {
@@ -23,12 +30,20 @@ export class WordValidator {
       return;
     }
 
-    this.initPromise = this.loadDictionary();
-    await this.initPromise;
-    this.initialized = true;
+    try {
+      this.initPromise = this.loadDictionary();
+      await this.initPromise;
+      this.initialized = true;
+    } catch (error) {
+      this.initPromise = null;
+      throw error;
+    }
   }
 
   private async loadDictionary(): Promise<void> {
+    this.wordSet = new Set();
+    this.trieRoot = { children: new Map(), isWord: false };
+
     try {
       const response = await fetch('/words.txt');
       if (!response.ok) {
@@ -36,15 +51,24 @@ export class WordValidator {
       }
       const text = await response.text();
       const words = text.split(/\r?\n/);
-      this.wordSet = new Set();
       words.forEach((word) => {
         const cleaned = word.trim().toUpperCase();
         if (cleaned.length > 0) {
           this.wordSet.add(cleaned);
+          this.insertWordIntoTrie(cleaned);
         }
       });
+      if (this.wordSet.size === 0) {
+        throw new Error('words.txt is empty');
+      }
+      return;
     } catch (error) {
       console.warn('Failed to load words.txt, trying dictionary.json...', error);
+    }
+
+    const jsonLoaded = await this.tryLoadJsonDictionary();
+    if (!jsonLoaded) {
+      throw new Error('Failed to load dictionary from words.txt or dictionary.json');
     }
   }
 
@@ -58,7 +82,11 @@ export class WordValidator {
       if (!Array.isArray(arr) || arr.length === 0) {
         throw new Error('dictionary.json is not a non-empty array');
       }
-      this.wordSet = new Set(arr.map((w) => (w || '').toString().trim().toUpperCase()).filter((w) => w.length > 0));
+      const cleanedWords = arr
+        .map((w) => (w || '').toString().trim().toUpperCase())
+        .filter((w) => w.length > 0);
+      this.wordSet = new Set(cleanedWords);
+      cleanedWords.forEach((word) => this.insertWordIntoTrie(word));
       console.log(`Dictionary loaded from JSON: ${this.wordSet.size} words`);
       return true;
     } catch (e) {
@@ -67,6 +95,25 @@ export class WordValidator {
     }
   }
 
+  private insertWordIntoTrie(word: string): void {
+    let node = this.trieRoot;
+    for (const char of word) {
+      if (!node.children.has(char)) {
+        node.children.set(char, { children: new Map(), isWord: false });
+      }
+      node = node.children.get(char)!;
+    }
+    node.isWord = true;
+  }
+
+  private searchTrie(word: string): boolean {
+    let node = this.trieRoot;
+    for (const char of word) {
+      if (!node.children.has(char)) return false;
+      node = node.children.get(char)!;
+    }
+    return node.isWord;
+  }
   // O(1) word validation
   isValidWord(word: string): boolean {
     if (!this.initialized) {
@@ -82,7 +129,8 @@ export class WordValidator {
       return false;
     }
 
-    return this.wordSet.has(normalized);
+    // return this.wordSet.has(normalized);
+    return this.searchTrie(normalized);
   }
 
   // Batch validation for multiple words
@@ -99,16 +147,36 @@ export class WordValidator {
   // Get word suggestions (for hints or autocomplete)
   getWordsStartingWith(prefix: string, limit: number = 10): string[] {
     const normalizedPrefix = prefix.toUpperCase();
-    const suggestions: string[] = [];
+    if (!this.initialized || normalizedPrefix.length === 0) return [];
 
-    for (const word of this.wordSet) {
-      if (word.startsWith(normalizedPrefix)) {
-        suggestions.push(word);
-        if (suggestions.length >= limit) break;
-      }
+    let node = this.trieRoot;
+    for (const char of normalizedPrefix) {
+      const next = node.children.get(char);
+      if (!next) return [];
+      node = next;
     }
 
-    return suggestions;
+    const results: string[] = [];
+    this.collectWordsFromNode(node, normalizedPrefix, results, limit);
+    return results;
+  }
+
+  private collectWordsFromNode(
+    node: TrieNode,
+    currentWord: string,
+    results: string[],
+    limit: number
+  ): void {
+    if (results.length >= limit) return;
+
+    if (node.isWord) {
+      results.push(currentWord);
+    }
+
+    for (const [char, child] of node.children) {
+      if (results.length >= limit) return;
+      this.collectWordsFromNode(child, currentWord + char, results, limit);
+    }
   }
 }
 
