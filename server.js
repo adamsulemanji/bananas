@@ -80,7 +80,13 @@ app.prepare().then(() => {
 
   const buildRoomView = (room, viewerId) => {
     return {
-      ...room,
+      id: room.id,
+      pin: room.pin,
+      host: room.host,
+      gameState: room.gameState,
+      createdAt: room.createdAt,
+      // Send count only — never expose bag contents (clients could cheat by seeing upcoming letters)
+      remainingTiles: room.letterBag.length,
       players: buildPlayersView(room, viewerId),
     };
   };

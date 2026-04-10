@@ -15,7 +15,7 @@ export interface MultiplayerRoom {
   host: string;
   players: MultiplayerPlayer[];
   gameState: 'waiting' | 'playing' | 'finished';
-  letterBag: string[];
+  remainingTiles: number;
   createdAt: Date;
 }
 

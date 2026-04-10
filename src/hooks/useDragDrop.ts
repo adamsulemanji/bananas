@@ -14,7 +14,7 @@ interface UseDragDropParams {
   updateTilePositions: (updater: (prevTiles: BoardTile[]) => BoardTile[]) => void;
   returnTileToBag: (letter: string) => void;
   drawTiles: (count: number) => void;
-  addTileToHand: (letter: string) => void;
+  addTileToHand: (letter: string, id?: string) => void;
   selectedTileIds: string[];
   // Optional multiplayer dump handler
   onDumpTile?: (tileId: string) => Promise<void>;
@@ -67,9 +67,10 @@ export function useDragDrop({
         return;
       }
 
-      // Allow single tile moves back to the hand
+      // Allow single tile moves back to the hand — pass original ID so server
+      // can still match it against player.tiles when validating peel
       if (tileFromBoard) {
-        addTileToHand(tileFromBoard.content);
+        addTileToHand(tileFromBoard.content, tileFromBoard.id);
         removeTileFromBoard(activeId);
 
         // Notify server about tile moved to hand

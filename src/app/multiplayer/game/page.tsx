@@ -190,13 +190,6 @@ function MultiplayerGameContent() {
     // gameState object itself is removed from dependencies
   ]);
 
-  // Update board state when tiles change
-  useEffect(() => {
-    if (gameState.tiles.length > 0 || gameState.playerHand.length > 0) {
-      updateBoard(gameState.tiles);
-    }
-  }, [gameState.tiles, updateBoard, gameState.playerHand.length]);
-
   // Track if we're in a drag operation to avoid duplicate hand size updates
   const [isDragging, setIsDragging] = useState(false);
 
@@ -240,6 +233,28 @@ function MultiplayerGameContent() {
   // Automatically call peel when player runs out of tiles (but not on initial load)
   const [hasInitialTiles, setHasInitialTiles] = useState(false);
   const [isCallingPeel, setIsCallingPeel] = useState(false);
+
+  // Show a clear message when the player is stuck: hand empty but board invalid.
+  // Without this they have nothing to do and no idea why peel isn't firing.
+  useEffect(() => {
+    if (
+      gameState.playerHand.length === 0 &&
+      gameState.tiles.length > 0 &&
+      hasInitialTiles &&
+      !isBoardValid &&
+      !isCallingPeel &&
+      currentRoom?.gameState === 'playing'
+    ) {
+      setGameStatus('Board has errors — fix invalid/disconnected words before you can PEEL.');
+    }
+  }, [
+    gameState.playerHand.length,
+    gameState.tiles.length,
+    hasInitialTiles,
+    isBoardValid,
+    isCallingPeel,
+    currentRoom?.gameState,
+  ]);
 
   useEffect(() => {
     if (gameState.playerHand.length > 0) {
