@@ -16,133 +16,92 @@ export default function BoardValidation({ tiles, onValidationChange, showDetails
   const [isValidating, setIsValidating] = useState(false);
 
   useEffect(() => {
-    const timeoutId = setTimeout(async () => {
+    const id = setTimeout(async () => {
       if (!isInitialized) return;
       setIsValidating(true);
       const result = await validateBoard(tiles);
       setValidation(result);
       setIsValidating(false);
-      if (onValidationChange) onValidationChange(result.isValid);
+      onValidationChange?.(result.isValid);
     }, 300);
-    return () => clearTimeout(timeoutId);
+    return () => clearTimeout(id);
   }, [tiles, isInitialized, validateBoard, onValidationChange]);
 
-  const labelStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-crimson-body)',
+  const chipStyle = (valid: boolean): React.CSSProperties => ({
+    fontFamily: 'var(--font-jetbrains)',
     fontSize: '0.7rem',
-    letterSpacing: '0.3em',
-    textTransform: 'uppercase' as const,
-    color: 'var(--aged)',
-  };
+    fontWeight: 600,
+    padding: '2px 8px',
+    borderRadius: '4px',
+    background: valid ? 'var(--green-bg)' : 'var(--red-bg)',
+    border: `1px solid ${valid ? 'rgba(56,201,138,0.3)' : 'rgba(240,84,84,0.3)'}`,
+    color: valid ? 'var(--green)' : 'var(--red)',
+  });
 
   if (isInitializing) {
     return (
-      <div className="p-3" style={{ border: '1px solid var(--case)', background: 'var(--press)' }}>
-        <p style={{ ...labelStyle }}>Loading dictionary...</p>
+      <div className="px-3 py-2 rounded-lg text-xs font-medium" style={{ background: 'var(--surface)', color: 'var(--text3)', border: '1.5px solid var(--border)' }}>
+        Loading dictionary…
       </div>
     );
   }
 
   if (!validation || isValidating) {
     return (
-      <div className="p-3" style={{ border: '1px solid var(--case)', background: 'var(--press)' }}>
-        <p style={{ ...labelStyle }}>Checking board...</p>
+      <div className="px-3 py-2 rounded-lg text-xs font-medium" style={{ background: 'var(--surface)', color: 'var(--text3)', border: '1.5px solid var(--border)' }}>
+        Checking…
       </div>
     );
   }
 
   const isValid = validation.isValid;
-  const hasInvalid = validation.invalidWords.length > 0;
-  const hasIssue = !validation.isConnected || validation.isolatedTiles.length > 0;
-
-  const accentColor = isValid ? 'var(--verdig)' : hasInvalid ? 'var(--vermil)' : hasIssue ? '#a07820' : 'var(--muted)';
 
   return (
     <div
-      className="p-3 space-y-2"
+      className="p-3 rounded-lg space-y-2"
       style={{
-        border: `1px solid ${isValid ? 'rgba(58,106,72,0.5)' : hasInvalid ? 'rgba(184,64,32,0.5)' : 'var(--case)'}`,
-        background: 'var(--press)',
+        background: 'var(--surface)',
+        border: `1.5px solid ${isValid ? 'rgba(56,201,138,0.35)' : validation.invalidWords.length > 0 ? 'rgba(240,84,84,0.35)' : 'var(--border)'}`,
       }}
     >
       <div className="flex items-center justify-between">
-        <h3
-          className="text-xs tracking-widest uppercase"
-          style={{ fontFamily: 'var(--font-cinzel-display)', color: accentColor, fontSize: '0.65rem' }}
+        <span
+          className="text-xs font-bold uppercase tracking-widest"
+          style={{ color: isValid ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--font-outfit)' }}
         >
-          {isValid ? 'Board Valid ✓' : 'Board Invalid ✗'}
-        </h3>
+          {isValid ? 'Board Valid' : 'Board Invalid'}
+        </span>
         {isValid && tiles.length === 0 && (
-          <span style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>
-            Place tiles to begin
-          </span>
+          <span className="text-xs" style={{ color: 'var(--text3)' }}>Place tiles to begin</span>
         )}
       </div>
 
       {showDetails && tiles.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {!validation.isConnected && (
-            <p style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-              All tiles must be connected
-            </p>
+            <p className="text-xs" style={{ color: 'var(--red)' }}>Tiles must be connected</p>
           )}
           {validation.isolatedTiles.length > 0 && (
-            <p style={{ fontFamily: 'var(--font-crimson-body)', color: '#a07820', fontSize: '0.8rem', fontStyle: 'italic' }}>
-              {validation.isolatedTiles.length} isolated tile{validation.isolatedTiles.length > 1 ? 's' : ''} not forming words
+            <p className="text-xs" style={{ color: '#f5c842' }}>
+              {validation.isolatedTiles.length} isolated tile{validation.isolatedTiles.length > 1 ? 's' : ''}
             </p>
           )}
           {validation.validWords.length > 0 && (
-            <div>
-              <p style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--verdig)', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
-                Valid ({validation.validWords.length}):
-              </p>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {validation.validWords.map((word, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-0.5 text-xs"
-                    style={{
-                      fontFamily: 'var(--font-courier-prime)',
-                      background: 'rgba(58,106,72,0.15)',
-                      border: '1px solid rgba(58,106,72,0.35)',
-                      color: 'var(--verdig)',
-                      borderRadius: '1px',
-                    }}
-                  >
-                    {word.word}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              {validation.validWords.map((w, i) => (
+                <span key={i} style={chipStyle(true)}>{w.word}</span>
+              ))}
             </div>
           )}
           {validation.invalidWords.length > 0 && (
-            <div>
-              <p style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
-                Invalid ({validation.invalidWords.length}):
-              </p>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {validation.invalidWords.map((word, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-0.5 text-xs"
-                    style={{
-                      fontFamily: 'var(--font-courier-prime)',
-                      background: 'rgba(184,64,32,0.15)',
-                      border: '1px solid rgba(184,64,32,0.35)',
-                      color: 'var(--vermil)',
-                      borderRadius: '1px',
-                    }}
-                  >
-                    {word.word}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1">
+              {validation.invalidWords.map((w, i) => (
+                <span key={i} style={chipStyle(false)}>{w.word}</span>
+              ))}
             </div>
           )}
           {tiles.length > 0 && validation.allWords.length === 0 && (
-            <p style={{ fontFamily: 'var(--font-crimson-body)', color: '#a07820', fontSize: '0.8rem', fontStyle: 'italic' }}>
-              No words formed yet
-            </p>
+            <p className="text-xs" style={{ color: 'var(--text3)' }}>No words yet</p>
           )}
         </div>
       )}

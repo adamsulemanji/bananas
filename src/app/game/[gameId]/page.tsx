@@ -426,40 +426,38 @@ export default function GamePage() {
   // Show win screen if player has won
   if (hasWon) {
     return (
-      <main className="min-h-screen p-4 flex items-center justify-center bg-dot-texture" style={{ background: 'var(--ink)' }}>
-        <div className="text-center animate-fadeIn p-12 max-w-md mx-auto" style={{ background: 'var(--press)', border: '1px solid var(--case)' }}>
-          <div className="mb-6">
-            <div
-              className="text-5xl mb-5"
-              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)', letterSpacing: '0.1em' }}
-            >
-              ✦
-            </div>
-            <h1
-              className="text-3xl mb-3"
-              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)', letterSpacing: '0.12em' }}
-            >
-              Congratulations
-            </h1>
-            <p style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)', fontSize: '1.1rem', fontStyle: 'italic' }}>
-              The puzzle is complete.
-            </p>
+      <main className="min-h-screen p-4 flex items-center justify-center bg-texture" style={{ background: 'var(--bg)' }}>
+        <div
+          className="text-center animate-fadeIn p-10 max-w-sm mx-auto rounded-xl"
+          style={{ background: 'var(--surface)', border: '1.5px solid var(--border2)' }}
+        >
+          <div
+            className="text-4xl font-black mb-3 tracking-tight"
+            style={{ color: 'var(--lime)', fontFamily: 'var(--font-outfit)' }}
+          >
+            You won!
           </div>
+          <p className="text-base mb-6" style={{ color: 'var(--text2)' }}>
+            Puzzle complete.
+          </p>
 
-          <div className="p-6 mb-8" style={{ border: '1px solid var(--case)', background: 'var(--type)' }}>
+          <div
+            className="rounded-lg p-5 mb-6"
+            style={{ background: 'var(--surface2)', border: '1.5px solid var(--border)' }}
+          >
             <div
-              className="text-3xl mb-2"
-              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)' }}
+              className="text-3xl font-bold mb-1"
+              style={{ color: 'var(--text)', fontFamily: 'var(--font-outfit)' }}
             >
               {finalScore?.toLocaleString()}
             </div>
-            <div style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+            <div className="text-sm" style={{ color: 'var(--text2)' }}>
               {Math.floor((Date.now() - gameStartTime) / 60000)}m{' '}
               {Math.floor(((Date.now() - gameStartTime) % 60000) / 1000)}s
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <button
               onClick={() => {
                 if (window.confirm('Start a new game?')) {
@@ -469,14 +467,11 @@ export default function GamePage() {
                   setGameStartTime(Date.now());
                 }
               }}
-              className="btn-press w-full"
+              className="btn-primary"
             >
               Play Again
             </button>
-            <button
-              onClick={() => router.push('/')}
-              className="btn-ghost w-full"
-            >
+            <button onClick={() => router.push('/')} className="btn-secondary">
               Back to Home
             </button>
           </div>
@@ -487,46 +482,52 @@ export default function GamePage() {
 
   return (
     <main
-      className="min-h-screen p-4 flex flex-col items-center relative bg-dot-texture"
-      style={{ background: 'var(--ink)' }}
+      className="min-h-screen p-4 flex flex-col items-center relative bg-texture"
+      style={{ background: 'var(--bg)' }}
       onMouseMove={marqueeSelection.dragMarquee}
       onMouseUp={marqueeSelection.endMarquee}
     >
-      <div className="w-full max-w-5xl mx-auto flex justify-between items-center mb-4 py-2" style={{ borderBottom: '1px solid var(--case)' }}>
+      <div
+        className="w-full max-w-5xl mx-auto flex justify-between items-center mb-4 py-3"
+        style={{ borderBottom: '1.5px solid var(--border)' }}
+      >
         <h1
-          className="text-xl tracking-widest"
-          style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
+          className="text-base font-bold tracking-tight"
+          style={{ color: 'var(--text)', fontFamily: 'var(--font-outfit)' }}
         >
-          BANANAGRAMS
+          Bananagrams
         </h1>
         <div className="flex items-center gap-4">
-          <div style={{ fontFamily: 'var(--font-courier-prime)', color: 'var(--aged)', fontSize: '0.85rem', letterSpacing: '0.15em' }}>
+          <span
+            className="text-sm font-bold tracking-widest"
+            style={{ fontFamily: 'var(--font-jetbrains)', color: 'var(--text2)' }}
+          >
             {gamePin || '----'}
-          </div>
-          <div style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)', fontSize: '0.75rem', fontStyle: 'italic' }}>
-            {saveStatus === 'saving' && 'saving...'}
-            {saveStatus === 'saved' && 'saved'}
-            {saveStatus === 'error' && 'save error'}
-          </div>
+          </span>
+          <span className="text-xs font-medium" style={{ color: 'var(--text3)' }}>
+            {saveStatus === 'saving' && 'Saving…'}
+            {saveStatus === 'saved' && 'Saved'}
+            {saveStatus === 'error' && 'Save error'}
+          </span>
           <button
             onClick={() => {
-              if (
-                window.confirm(
-                  'Are you sure you want to reset the game? This will clear all tiles and start fresh.'
-                )
-              ) {
+              if (window.confirm('Reset the game? This will clear all tiles and start fresh.')) {
                 gameState.resetGame();
               }
             }}
-            className="btn-ghost"
-            style={{ padding: '0.25rem 0.75rem', fontSize: '0.65rem' }}
+            className="text-xs font-semibold uppercase tracking-wider transition-colors duration-150"
+            style={{ color: 'var(--text3)' }}
+            onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text2)')}
+            onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text3)')}
           >
             Reset
           </button>
           <button
             onClick={() => router.push('/')}
-            className="btn-ghost"
-            style={{ padding: '0.25rem 0.75rem', fontSize: '0.65rem' }}
+            className="text-xs font-semibold uppercase tracking-wider transition-colors duration-150"
+            style={{ color: 'var(--text3)' }}
+            onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text2)')}
+            onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text3)')}
           >
             Exit
           </button>

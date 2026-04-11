@@ -13,9 +13,8 @@ import {
 import GameManagement from './components/GameManagement';
 import { useSocket } from '@/contexts/SocketContext';
 
-const HERO_TILES = ['B', 'A', 'N', 'A', 'N', 'A', 'G', 'R', 'A', 'M', 'S'];
-const ROTATIONS = [-4, 2, -2, 5, -3, 1, -5, 3, -1, 4, -2];
-const FLOAT_DELAYS = [0, 0.8, 1.6, 0.4, 1.2, 2.0, 0.6, 1.4, 0.2, 1.0, 1.8];
+const DEMO_TILES = ['B', 'A', 'N', 'A', 'N', 'A', 'G', 'R', 'A', 'M', 'S'];
+const TILE_TILTS = [-3, 2, -1, 4, -2, 1, -4, 3, 0, -2, 3];
 
 export default function LandingPage() {
   const router = useRouter();
@@ -35,65 +34,41 @@ export default function LandingPage() {
   const { createRoom, joinRoom, isConnected } = useSocket();
 
   useEffect(() => {
-    const recent = getRecentSessions(3);
-    setRecentGames(recent);
+    setRecentGames(getRecentSessions(3));
   }, []);
 
   const handleStartNewGame = async () => {
     setIsCreatingGame(true);
     const gameId = generateGameId();
     const pin = generatePin();
-    const newSession: GameSession = {
-      gameId,
-      pin,
-      createdAt: new Date(),
-      lastSaved: new Date(),
-      gameState: '',
-    };
-    saveGameSession(newSession);
+    saveGameSession({ gameId, pin, createdAt: new Date(), lastSaved: new Date(), gameState: '' });
     router.push(`/game/${gameId}`);
   };
 
   const handleRestoreGame = (e: React.FormEvent) => {
     e.preventDefault();
     setRestoreError(null);
-    if (restorePin.length !== 4) {
-      setRestoreError('PIN must be 4 digits');
-      return;
-    }
+    if (restorePin.length !== 4) { setRestoreError('PIN must be 4 digits'); return; }
     const session = getGameSessionByPin(restorePin);
-    if (session) {
-      router.push(`/game/${session.gameId}`);
-    } else {
-      setRestoreError('No game found with this PIN');
-    }
+    if (session) { router.push(`/game/${session.gameId}`); }
+    else { setRestoreError('No game found with this PIN'); }
   };
 
   const handleCreateMultiplayerRoom = async () => {
     if (!playerName.trim()) { setMultiplayerError('Please enter your name'); return; }
-    setIsProcessing(true);
-    setMultiplayerError('');
+    setIsProcessing(true); setMultiplayerError('');
     const result = await createRoom(playerName);
-    if (result.success && result.pin) {
-      router.push(`/multiplayer/lobby?pin=${result.pin}`);
-    } else {
-      setMultiplayerError(result.error || 'Failed to create room');
-      setIsProcessing(false);
-    }
+    if (result.success && result.pin) { router.push(`/multiplayer/lobby?pin=${result.pin}`); }
+    else { setMultiplayerError(result.error || 'Failed to create room'); setIsProcessing(false); }
   };
 
   const handleJoinMultiplayerRoom = async () => {
     if (!playerName.trim()) { setMultiplayerError('Please enter your name'); return; }
     if (joinPin.length !== 4) { setMultiplayerError('PIN must be 4 digits'); return; }
-    setIsProcessing(true);
-    setMultiplayerError('');
+    setIsProcessing(true); setMultiplayerError('');
     const result = await joinRoom(joinPin, playerName);
-    if (result.success) {
-      router.push(`/multiplayer/lobby?pin=${joinPin}`);
-    } else {
-      setMultiplayerError(result.error || 'Failed to join room');
-      setIsProcessing(false);
-    }
+    if (result.success) { router.push(`/multiplayer/lobby?pin=${joinPin}`); }
+    else { setMultiplayerError(result.error || 'Failed to join room'); setIsProcessing(false); }
   };
 
   const formatDate = (date: Date) => {
@@ -104,148 +79,93 @@ export default function LandingPage() {
     return d.toLocaleDateString();
   };
 
+  const closeModal = () => {
+    setShowMultiplayerModal(false);
+    setMultiplayerMode(null);
+    setMultiplayerError('');
+    setPlayerName('');
+    setJoinPin('');
+    setIsProcessing(false);
+  };
+
   return (
-    <main className="min-h-screen bg-ink relative overflow-x-hidden">
-
-      {/* Dot-grid texture */}
-      <div className="fixed inset-0 bg-dot-texture pointer-events-none" aria-hidden="true" />
-
-      {/* Faint corner vignette */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%)' }}
-        aria-hidden="true"
-      />
-
-      <div className="relative max-w-4xl mx-auto px-6">
+    <main
+      className="min-h-screen bg-texture"
+      style={{ background: 'var(--bg)', fontFamily: 'var(--font-outfit)' }}
+    >
+      <div className="max-w-2xl mx-auto px-5 pt-16 pb-20">
 
         {/* ── Hero ── */}
-        <section className="pt-16 pb-10 text-center">
+        <header className="mb-12">
 
-          {/* Top eyebrow rule */}
-          <div className="reveal-1 flex items-center gap-4 mb-10">
-            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, #5a4830)' }} />
-            <span
-              className="text-[10px] tracking-[0.45em] uppercase"
-              style={{ color: 'var(--aged)', fontFamily: 'var(--font-crimson-body)' }}
-            >
-              The Classic Word Game
-            </span>
-            <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, #5a4830)' }} />
-          </div>
-
-          {/* Main title */}
-          <div className="reveal-2">
-            <h1
-              className="text-5xl sm:text-7xl md:text-8xl leading-none mb-6 tracking-wider"
-              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
-            >
-              BANANAGRAMS
-            </h1>
-            <p
-              className="text-lg italic mb-10"
-              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-            >
-              Assemble your tiles. Form your words. Beat the bunch.
-            </p>
-          </div>
-
-          {/* Floating decorative tiles */}
-          <div className="reveal-3 flex flex-wrap justify-center gap-2 mb-10">
-            {HERO_TILES.map((letter, i) => (
+          {/* Tile strip */}
+          <div className="reveal-1 flex gap-1.5 mb-8">
+            {DEMO_TILES.map((letter, i) => (
               <div
                 key={i}
-                className="float-tile"
+                className="w-9 h-9 rounded flex items-center justify-center text-sm font-bold select-none tile-base"
                 style={{
-                  '--tile-rotate': `${ROTATIONS[i]}deg`,
-                  animationDelay: `${FLOAT_DELAYS[i]}s`,
-                  animationDuration: `${3.5 + (i % 3) * 0.5}s`,
-                } as React.CSSProperties}
+                  background: 'var(--tile-bg)',
+                  border: '1.5px solid var(--tile-b)',
+                  color: 'var(--tile-t)',
+                  fontFamily: 'var(--font-jetbrains)',
+                  transform: `rotate(${TILE_TILTS[i]}deg)`,
+                  flexShrink: 0,
+                }}
               >
-                <div
-                  className="w-10 h-10 flex items-center justify-center tile-shadow"
-                  style={{
-                    background: 'var(--tile-bg)',
-                    border: '1px solid var(--tile-border)',
-                    fontFamily: 'var(--font-courier-prime)',
-                    fontWeight: 700,
-                    color: 'var(--ink)',
-                    fontSize: '1.1rem',
-                    transform: `rotate(${ROTATIONS[i]}deg)`,
-                    borderRadius: '2px',
-                    userSelect: 'none',
-                  }}
-                >
-                  {letter}
-                </div>
+                {letter}
               </div>
             ))}
           </div>
 
-          {/* Ornamental rule */}
-          <div className="reveal-3 flex items-center gap-3 text-brass/50 mb-0">
-            <div className="flex-1 h-px bg-case" />
-            <span className="text-brass text-base">✦</span>
-            <div className="flex-1 h-px bg-case" />
-            <span className="text-brass/60 text-xs">✦</span>
-            <div className="flex-1 h-px bg-case" />
+          {/* Title */}
+          <div className="reveal-2">
+            <h1
+              className="text-5xl sm:text-6xl font-extrabold leading-none tracking-tight mb-3"
+              style={{ color: 'var(--text)', fontFamily: 'var(--font-outfit)' }}
+            >
+              Bananagrams
+            </h1>
+            <p className="text-base font-medium" style={{ color: 'var(--text2)' }}>
+              Build words from your tiles faster than everyone else.
+            </p>
           </div>
-        </section>
+        </header>
 
         {/* ── Action Cards ── */}
-        <section className="pb-8">
-          <div className="grid md:grid-cols-2 gap-5 mb-5">
+        <div className="space-y-4">
+
+          {/* New Game + Continue — side by side */}
+          <div className="reveal-3 grid grid-cols-2 gap-4">
 
             {/* New Game */}
-            <div className="reveal-4 card-press p-8 flex flex-col">
-              <div
-                className="text-[10px] tracking-[0.4em] uppercase mb-3"
-                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-              >
-                Solo Play
+            <div className="card p-6 flex flex-col gap-4">
+              <div>
+                <p className="label">Solo</p>
+                <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>New Game</h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--text2)' }}>
+                  Starts fresh. Auto-saves with a PIN.
+                </p>
               </div>
-              <h2
-                className="text-2xl mb-4"
-                style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
-              >
-                New Game
-              </h2>
-              <p
-                className="text-base leading-relaxed mb-8 flex-1"
-                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-              >
-                Begin a fresh single-player game. Your progress is automatically saved and can be resumed with a 4-digit PIN.
-              </p>
               <button
                 onClick={handleStartNewGame}
                 disabled={isCreatingGame}
-                className="btn-press w-full"
+                className="btn-primary"
               >
-                {isCreatingGame ? 'Dealing Tiles...' : 'Deal Tiles'}
+                {isCreatingGame ? 'Starting…' : 'Play Solo'}
               </button>
             </div>
 
-            {/* Continue Game */}
-            <div className="reveal-4 card-press p-8 flex flex-col">
-              <div
-                className="text-[10px] tracking-[0.4em] uppercase mb-3"
-                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-              >
-                Resume
+            {/* Continue */}
+            <div className="card p-6 flex flex-col gap-4">
+              <div>
+                <p className="label">Resume</p>
+                <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Continue</h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--text2)' }}>
+                  Enter your 4-digit PIN.
+                </p>
               </div>
-              <h2
-                className="text-2xl mb-4"
-                style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
-              >
-                Continue Game
-              </h2>
-              <p
-                className="text-base leading-relaxed mb-6 flex-1"
-                style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-              >
-                Return to a saved game using your 4-digit PIN.
-              </p>
-              <form onSubmit={handleRestoreGame} className="space-y-3">
+              <form onSubmit={handleRestoreGame} className="flex flex-col gap-2 mt-auto">
                 <input
                   type="text"
                   value={restorePin}
@@ -253,19 +173,16 @@ export default function LandingPage() {
                     setRestorePin(e.target.value.replace(/\D/g, '').slice(0, 4));
                     setRestoreError(null);
                   }}
-                  placeholder="· · · ·"
-                  className="pin-input"
+                  placeholder="0000"
+                  className="pin-field"
                   maxLength={4}
                 />
                 {restoreError && (
-                  <p
-                    className="text-sm italic"
-                    style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)' }}
-                  >
+                  <p className="text-xs font-medium" style={{ color: 'var(--red)' }}>
                     {restoreError}
                   </p>
                 )}
-                <button type="submit" className="btn-ghost w-full">
+                <button type="submit" className="btn-secondary">
                   Restore
                 </button>
               </form>
@@ -273,45 +190,36 @@ export default function LandingPage() {
           </div>
 
           {/* Multiplayer */}
-          <div className="reveal-5 card-press p-8 mb-5">
-            <div className="flex flex-col md:flex-row md:items-center gap-6 justify-between">
+          <div className="reveal-4 card p-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <div
-                  className="text-[10px] tracking-[0.4em] uppercase mb-3"
-                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-                >
-                  Real-Time · 2–8 Players
-                </div>
-                <h2
-                  className="text-2xl mb-2"
-                  style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
-                >
-                  Multiplayer
+                <p className="label">Multiplayer · 2–8 players</p>
+                <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+                  Play with friends
                 </h2>
-                <p
-                  className="text-base"
-                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-                >
-                  Create a room or join a friend's game with their PIN.
+                <p className="text-sm mt-1" style={{ color: 'var(--text2)' }}>
+                  Real-time. Create a room or join with a PIN.
                   {!isConnected && (
-                    <span className="italic ml-2" style={{ color: 'var(--rule)' }}>
-                      Connecting...
+                    <span className="ml-2 text-xs" style={{ color: 'var(--text3)' }}>
+                      Connecting…
                     </span>
                   )}
                 </p>
               </div>
-              <div className="flex gap-3 shrink-0">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => { setShowMultiplayerModal(true); setMultiplayerMode('create'); }}
                   disabled={!isConnected}
-                  className="btn-press"
+                  className="btn-primary"
+                  style={{ width: 'auto', padding: '0.65rem 1.25rem' }}
                 >
                   Create
                 </button>
                 <button
                   onClick={() => { setShowMultiplayerModal(true); setMultiplayerMode('join'); }}
                   disabled={!isConnected}
-                  className="btn-ghost"
+                  className="btn-secondary"
+                  style={{ width: 'auto', padding: '0.65rem 1.25rem' }}
                 >
                   Join
                 </button>
@@ -321,160 +229,128 @@ export default function LandingPage() {
 
           {/* Recent Games */}
           {recentGames.length > 0 && (
-            <div className="reveal-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-1 h-px bg-case" />
-                <span
-                  className="text-[10px] tracking-[0.4em] uppercase"
-                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-                >
-                  Recent Games
-                </span>
-                <div className="flex-1 h-px bg-case" />
-              </div>
+            <div className="reveal-5">
+              <p className="label mb-3">Recent Games</p>
               <div className="space-y-2">
                 {recentGames.map((game) => (
-                  <div
+                  <button
                     key={game.gameId}
-                    className="card-press flex items-center justify-between px-6 py-4 cursor-pointer"
                     onClick={() => router.push(`/game/${game.gameId}`)}
+                    className="card w-full px-5 py-4 flex items-center justify-between text-left"
+                    style={{ cursor: 'pointer' }}
                   >
                     <div>
                       <span
-                        className="text-xl tracking-[0.4em]"
-                        style={{ fontFamily: 'var(--font-courier-prime)', color: 'var(--cream)' }}
+                        className="text-lg font-bold tracking-widest"
+                        style={{ fontFamily: 'var(--font-jetbrains)', color: 'var(--text)' }}
                       >
                         {game.pin}
                       </span>
-                      <p
-                        className="text-xs italic mt-0.5"
-                        style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-                      >
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
                         {formatDate(game.lastSaved)}
                       </p>
                     </div>
                     <span
-                      className="text-xs tracking-[0.3em] uppercase"
-                      style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--brass)', opacity: 0.7 }}
+                      className="text-xs font-bold uppercase tracking-widest"
+                      style={{ color: 'var(--lime)' }}
                     >
                       Resume →
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
-        </section>
 
-        {/* ── Footer ── */}
-        <footer className="pb-12">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 h-px bg-case" />
-            <span className="text-brass/30 text-xs">✦</span>
-            <div className="flex-1 h-px bg-case" />
-          </div>
-          <div className="text-center">
+          {/* Advanced */}
+          <div className="reveal-6 pt-2 text-center">
             <button
               onClick={() => setShowGameManagement(!showGameManagement)}
-              className="text-xs italic transition-colors duration-200"
-              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)' }}
-              onMouseOver={(e) => (e.currentTarget.style.color = 'var(--muted)')}
-              onMouseOut={(e) => (e.currentTarget.style.color = 'var(--rule)')}
+              className="text-xs font-medium transition-colors duration-150"
+              style={{ color: 'var(--text3)' }}
+              onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text2)')}
+              onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text3)')}
             >
-              {showGameManagement ? 'hide' : 'show'} advanced options
+              {showGameManagement ? 'Hide' : 'Show'} advanced options
             </button>
+            {showGameManagement && <GameManagement />}
           </div>
-          {showGameManagement && <GameManagement />}
-        </footer>
-
+        </div>
       </div>
 
       {/* ── Multiplayer Modal ── */}
       {showMultiplayerModal && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50"
-          style={{ background: 'rgba(13,10,6,0.85)', backdropFilter: 'blur(4px)' }}
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 z-50"
+          style={{ background: 'rgba(12,13,16,0.85)', backdropFilter: 'blur(6px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
           <div
-            className="animate-fadeIn w-full max-w-md p-8"
-            style={{ background: 'var(--press)', border: '1px solid var(--case)' }}
+            className="animate-fadeIn w-full max-w-sm card p-7"
           >
-            <div
-              className="text-[10px] tracking-[0.4em] uppercase mb-2"
-              style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-            >
-              {multiplayerMode === 'create' ? 'New Room' : 'Enter Room'}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="label mb-0.5">
+                  {multiplayerMode === 'create' ? 'New Room' : 'Enter Room'}
+                </p>
+                <h3 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
+                  {multiplayerMode === 'create' ? 'Create Room' : 'Join Room'}
+                </h3>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-xl font-light leading-none transition-colors"
+                style={{ color: 'var(--text3)' }}
+                onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text2)')}
+                onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text3)')}
+              >
+                ✕
+              </button>
             </div>
-            <h3
-              className="text-2xl mb-6"
-              style={{ fontFamily: 'var(--font-cinzel-display)', color: 'var(--cream)' }}
-            >
-              {multiplayerMode === 'create' ? 'Create Room' : 'Join Room'}
-            </h3>
 
             <div className="space-y-4">
               <div>
-                <label
-                  className="block text-[10px] tracking-[0.35em] uppercase mb-2"
-                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-                >
-                  Your Name
-                </label>
+                <label className="label">Your name</label>
                 <input
                   type="text"
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Enter your name"
-                  className="input-press"
+                  className="input-field"
                   maxLength={20}
+                  autoFocus
                 />
               </div>
 
               {multiplayerMode === 'join' && (
                 <div>
-                  <label
-                    className="block text-[10px] tracking-[0.35em] uppercase mb-2"
-                    style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-                  >
-                    Room PIN
-                  </label>
+                  <label className="label">Room PIN</label>
                   <input
                     type="text"
                     value={joinPin}
                     onChange={(e) => setJoinPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="· · · ·"
-                    className="pin-input"
+                    placeholder="0000"
+                    className="pin-field"
                     maxLength={4}
                   />
                 </div>
               )}
 
               {multiplayerError && (
-                <p
-                  className="text-sm italic"
-                  style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--vermil)' }}
-                >
+                <p className="text-sm font-medium" style={{ color: 'var(--red)' }}>
                   {multiplayerError}
                 </p>
               )}
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 pt-1">
                 <button
                   onClick={multiplayerMode === 'create' ? handleCreateMultiplayerRoom : handleJoinMultiplayerRoom}
                   disabled={isProcessing}
-                  className="btn-press flex-1"
+                  className="btn-primary"
                 >
-                  {isProcessing ? 'Processing...' : multiplayerMode === 'create' ? 'Create' : 'Join'}
+                  {isProcessing ? 'Working…' : multiplayerMode === 'create' ? 'Create' : 'Join'}
                 </button>
-                <button
-                  onClick={() => {
-                    setShowMultiplayerModal(false);
-                    setMultiplayerMode(null);
-                    setMultiplayerError('');
-                    setPlayerName('');
-                    setJoinPin('');
-                  }}
-                  className="btn-ghost flex-1"
-                >
+                <button onClick={closeModal} className="btn-secondary">
                   Cancel
                 </button>
               </div>

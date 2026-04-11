@@ -12,30 +12,25 @@ interface TilePaletteProps {
   onTradeInTile: (tileId: string) => void;
 }
 
-function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }: TilePaletteProps) {
+function TilePalette({ playerHand, remainingTiles }: TilePaletteProps) {
   const { isOver, setNodeRef } = useDroppable({ id: 'tile-palette' });
 
   return (
     <div
       ref={setNodeRef}
-      className="flex flex-col gap-2 p-3 mb-4 relative z-10 transition-all duration-200"
+      className="flex flex-col gap-2 p-3 mb-3 relative z-10 rounded-lg transition-all duration-150"
       style={{
-        background: isOver ? 'rgba(200,148,26,0.07)' : 'var(--press)',
-        border: `1px solid ${isOver ? 'rgba(200,148,26,0.45)' : 'var(--case)'}`,
+        background: isOver ? 'rgba(201,242,61,0.06)' : 'var(--surface)',
+        border: `1.5px solid ${isOver ? 'rgba(201,242,61,0.4)' : 'var(--border)'}`,
       }}
     >
       <div className="flex justify-between items-center">
-        <h2
-          className="text-xs tracking-[0.35em] uppercase"
-          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--aged)' }}
-        >
-          Your Tiles
-        </h2>
+        <span className="label mb-0">Your Tiles</span>
         <span
-          className="text-xs italic"
-          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--rule)' }}
+          className="text-xs font-medium"
+          style={{ color: 'var(--text3)', fontFamily: 'var(--font-outfit)' }}
         >
-          {isOver ? 'Release to return tile' : `${playerHand.length} in hand · ${remainingTiles} in bunch`}
+          {isOver ? 'Release to return' : `${playerHand.length} in hand · ${remainingTiles} in bunch`}
         </span>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -44,15 +39,12 @@ function TilePalette({ playerHand, remainingTiles, onDrawTiles, onTradeInTile }:
             <GridTile id={tile.id} content={tile.letter} />
           </div>
         ))}
+        {playerHand.length === 0 && (
+          <p className="text-xs py-1" style={{ color: 'var(--text3)' }}>
+            {remainingTiles > 0 ? 'Drawing tiles…' : 'Hand is empty'}
+          </p>
+        )}
       </div>
-      {playerHand.length === 0 && remainingTiles > 0 && (
-        <p
-          className="text-xs italic text-center py-1"
-          style={{ fontFamily: 'var(--font-crimson-body)', color: 'var(--muted)' }}
-        >
-          Drawing tiles...
-        </p>
-      )}
     </div>
   );
 }

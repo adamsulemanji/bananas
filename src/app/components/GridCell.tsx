@@ -15,10 +15,11 @@ export default function GridCell({ id, children }: GridCellProps) {
     <div
       id={id}
       ref={setNodeRef}
-      className="w-full h-full min-h-[32px] aspect-square p-0.5 relative transition-colors duration-100"
+      className="w-full h-full min-h-[32px] aspect-square p-0.5 relative"
       style={{
-        border: '1px solid rgba(58,50,32,0.5)',
-        background: isOver ? 'rgba(200,148,26,0.12)' : 'transparent',
+        border: '1px solid rgba(39,42,56,0.8)',
+        background: isOver ? 'rgba(201,242,61,0.08)' : 'transparent',
+        transition: 'background 0.1s',
       }}
     >
       {children}

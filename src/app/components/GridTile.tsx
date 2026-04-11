@@ -21,14 +21,34 @@ export default function GridTile({ id, content, isSelected, isGhost, isInvalidWo
   const dragTransform =
     transform && !style
       ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0) ${isDragging ? 'scale(1.08)' : ''}`,
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)${isDragging ? ' scale(1.06)' : ''}`,
           zIndex: isDragging ? 1000 : isSelected ? 900 : 1,
-          transition: isDragging ? undefined : 'transform 0.2s ease',
+          transition: isDragging ? undefined : 'transform 0.15s ease',
           position: isDragging ? ('relative' as const) : undefined,
         }
       : isSelected
         ? { zIndex: 900 }
         : {};
+
+  const bg = isInvalidWord
+    ? '#2a1010'
+    : isSelected && !isDragging
+      ? 'rgba(201,242,61,0.15)'
+      : 'var(--tile-bg)';
+
+  const borderColor = isInvalidWord
+    ? 'var(--red)'
+    : isSelected && !isDragging
+      ? 'var(--lime)'
+      : 'var(--tile-b)';
+
+  const boxShadow = isSelected && !isDragging
+    ? 'var(--tw-shadow, 0 0 0 2px var(--lime), 0 0 14px rgba(201,242,61,0.25), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(0,0,0,0.18))'
+    : isInvalidWord
+      ? '0 0 0 1.5px var(--red), 0 0 10px rgba(240,84,84,0.2), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -3px 0 rgba(0,0,0,0.18)'
+      : isDragging
+        ? 'inset 0 1px 0 rgba(255,255,255,0.55), 0 8px 24px rgba(0,0,0,0.7)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.45)';
 
   const tileStyle: React.CSSProperties = {
     width: '100%',
@@ -36,29 +56,13 @@ export default function GridTile({ id, content, isSelected, isGhost, isInvalidWo
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: '2px',
-    border: `1px solid ${
-      isInvalidWord
-        ? '#b84020'
-        : isSelected && !isDragging
-          ? 'var(--brass)'
-          : 'var(--tile-border)'
-    }`,
-    background: isInvalidWord
-      ? '#3d1008'
-      : isSelected && !isDragging
-        ? 'rgba(200,148,26,0.18)'
-        : 'var(--tile-bg)',
-    boxShadow: isSelected && !isDragging
-      ? '0 0 0 2px var(--brass), 0 0 10px rgba(200,148,26,0.28), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.2)'
-      : isInvalidWord
-        ? 'inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -2px 0 rgba(0,0,0,0.25), 0 0 8px rgba(184,64,32,0.35)'
-        : isDragging
-          ? 'inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 24px rgba(0,0,0,0.75)'
-          : 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 0 rgba(0,0,0,0.22), 0 2px 5px rgba(0,0,0,0.5)',
-    opacity: isGhost ? 0.3 : isDragging ? 0.8 : 1,
+    borderRadius: '3px',
+    border: `1.5px solid ${borderColor}`,
+    background: bg,
+    boxShadow,
+    opacity: isGhost ? 0.3 : isDragging ? 0.75 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
-    transition: 'box-shadow 0.15s, background 0.15s',
+    transition: 'box-shadow 0.12s, background 0.12s, opacity 0.12s',
     ...style,
     ...dragTransform,
   };
@@ -73,13 +77,13 @@ export default function GridTile({ id, content, isSelected, isGhost, isInvalidWo
     >
       <span
         style={{
-          fontFamily: 'var(--font-courier-prime), "Courier New", monospace',
+          fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
           fontWeight: 700,
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
           lineHeight: 1,
-          color: isInvalidWord ? '#f87171' : 'var(--ink)',
-          userSelect: 'none',
           letterSpacing: '0.02em',
+          color: isInvalidWord ? 'var(--red)' : 'var(--tile-t)',
+          userSelect: 'none',
         }}
       >
         {content.toUpperCase()}
